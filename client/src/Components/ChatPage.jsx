@@ -1,6 +1,6 @@
 import React, { useEffect, useState,useRef } from 'react';
 import { io } from 'socket.io-client';
-import { Avatar, Box, Button, Container, TextField, Typography, IconButton,InputAdornment,Tooltip } from '@mui/material';
+import { Avatar, Box, Button, Container, TextField, Typography, IconButton,InputAdornment,Tooltip,List,ListItem,ListItemText,Backdrop,CircularProgress } from '@mui/material';
 import toast from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
 import CloseIcon from '@mui/icons-material/Close';
@@ -8,23 +8,43 @@ import { useMediaQuery } from '@mui/material';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'; 
+import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
 
 const ChatPage = () => {
-    let myFullName = useRef('');
     const { emailId } = useParams();
+    const localStorageChats = JSON.parse(localStorage.getItem(emailId));
+    let myFullName = useRef('');
+    const sentMessageIds = useRef(new Set());
     const [socket, setSocket] = useState(null);
     const [receiverEmailID, setReceiverEmailID] = useState('');
     const [message, setMessage] = useState('');
-    const [chats, setChats] = useState({});
+    const [chats, setChats] = useState(localStorageChats);
     const [currEmailID, setCurrEmailID] = useState();
-    const [lastDpUpadte, setlastDpUpadte] = useState(0);
+    const [mainPageLoad, setmainPageLoad] = useState(false);
+    const [openGroupForm, setopenGroupForm] = useState(false);
     const [showChatList, setShowChatList] = useState(true);
-    const isSmallScreen = useMediaQuery('(max-width: 600px)'); // Detect small screens
+    const [groupFormData, setGroupFormData] = useState({
+        groupName: '',
+        members: [emailId]
+    });
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [emailInput, setEmailInput] = useState('');
+    const [allRooms, setallRooms] = useState([emailId]);
+    // const [isGroupNameVerified, setIsGroupNameVerified] = useState(false);
+    const isSmallScreen = useMediaQuery('(max-width: 600px)');
+    const emailInputRef = useRef(null);
 
     useEffect(  () => {
+        setmainPageLoad(true);
         const newSocket = io('http://localhost:3000');
-        
-        const fetchFullName = async ()=>{
+        const fetchInfo = async ()=>{
             try {
                 const response = await fetch('http://localhost:3000/api/v1/checkUser', {
                     method: 'POST',
@@ -33,15 +53,27 @@ const ChatPage = () => {
                 });
     
                 const data = await response.json();
-
+                console.log(data);
                 myFullName.current=data.response.fullName;
     
             } catch (error) {
                 console.log(error);
             }
+            finally {
+                setmainPageLoad(false);
+            }
         }
 
-        fetchFullName();
+        fetchInfo();
+
+        // store rooms from db
+        const roomsFromStorage = JSON.parse(localStorage.getItem(`${emailId}Rooms`));
+
+        console.log(roomsFromStorage);
+
+        if(roomsFromStorage!==null && roomsFromStorage!==undefined){
+            setallRooms(roomsFromStorage);
+        }
 
         newSocket.on('connect', () => {
             console.log('Connected to the server with id:', newSocket.id);
@@ -64,13 +96,67 @@ const ChatPage = () => {
 
     const sendHandler = (e) => {
         e.preventDefault();
+        const messageId = Date.now();
+        const timestamp = Date().split("GMT")[0].trim();
+
+        if (!sentMessageIds.current.has(messageId)) {
+            // Add the message ID to the Set
+            sentMessageIds.current.add(messageId);
+
+            socket.emit('sendMessage', {
+                messageId: messageId,
+                sender: emailId,
+                receiver: currEmailID,
+                message: message,
+                time: timestamp,
+                fullName: myFullName.current,
+                isSeen: false
+            });
+
+            // Update chats state
+            setChats((prevChats) => {
+                const updatedChats = { ...prevChats };
+                if (!updatedChats[currEmailID]) {
+                    updatedChats[currEmailID] = { messages: [], lastMessage: {} };
+                }
+
+                // check again
+                const messageExists = updatedChats[currEmailID].messages.some(
+                    msg => msg.messageId === messageId
+                );
+
+                if(!messageExists){
+                    updatedChats[currEmailID].messages.push({
+                        side: 'me',
+                        messageId: messageId,
+                        message: message,
+                        time: timestamp,
+                        isSeen: false
+                    });
+    
+                    updatedChats[currEmailID].lastMessage = {
+                        side: 'me',
+                        message: message,
+                        time: timestamp
+                    };
+                }
+                
+                // Clear message input immediately after sending
+                setMessage('');
+                return updatedChats;
+            });
+        }
+    };
+
+    const sendGroupMessage = (e) => {
+        e.preventDefault();
 
         if (message !== '' && currEmailID) {
             const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-            socket.emit('sendMessage', {
+            socket.emit('sendGroupMessage', {
+                groupName:currEmailID,
                 sender: emailId,
-                receiver: currEmailID,
                 message: message,
                 time: timestamp,
                 fullName:myFullName.current
@@ -175,7 +261,7 @@ const ChatPage = () => {
         }
     };
 
-    const currentEmailHandler = (email, userName) => {
+    const currentEmailHandler = (email) => {
         setCurrEmailID(email);
 
         if (isSmallScreen) {
@@ -183,12 +269,247 @@ const ChatPage = () => {
         }
     };
 
+    const handleCloseGroupForm = () => {
+        setopenGroupForm(false);
+    };
+
     useEffect(() => {
       console.log(chats);
+      localStorage.setItem(`${emailId}`, JSON.stringify(chats));
     }, [chats])
+
+    useEffect(() => {
+        // If emailFromUrl exists, add it to the members list when the component mounts
+        if (emailId && !groupFormData.members.includes(emailId)) {
+          setGroupFormData((prevData) => ({
+            ...prevData,
+            members: [...prevData.members, emailId]
+          }));
+        }
+    }, [emailId]);
+    
+    useEffect(() => {
+        if (currEmailID && chats[currEmailID]) {
+            const allMessages = chats[currEmailID].messages || [];
+    
+            // Filter only received messages that are unread (to avoid marking sent messages as seen)
+            const unreadMessages = allMessages.filter(
+                message => message.isSeen === false && message.side !== 'me' // Ensure only received messages
+            );
+    
+            if (unreadMessages.length > 0) {
+                unreadMessages.forEach(message => {
+                    const messageId = message.messageId;
+    
+                    // Emit seen update only for the unread received messages
+                    socket.emit('seenUpdate', { messageId, receiver: currEmailID, sender: emailId });
+    
+                    // Update `isSeen` locally after emitting to prevent re-emitting
+                    setChats(prevChats => {
+                        const updatedMessages = [...prevChats[currEmailID].messages];
+                        const messageIndex = updatedMessages.findIndex(msg => msg.messageId === messageId);
+    
+                        if (messageIndex !== -1) {
+                            updatedMessages[messageIndex] = {
+                                ...updatedMessages[messageIndex],
+                                isSeen: true
+                            };
+                        }
+    
+                        return {
+                            ...prevChats,
+                            [currEmailID]: {
+                                ...prevChats[currEmailID],
+                                messages: updatedMessages
+                            }
+                        };
+                    });
+                });
+            }
+        }
+    }, [currEmailID, chats, emailId, socket]); 
     
     const toggleChatList = () => {
         setShowChatList(true);
+    };
+
+    const handleGroupNameChange = (event) => {
+        // setIsGroupNameVerified(false);
+        setGroupFormData({ ...groupFormData, groupName: event.target.value });
+    };
+    
+    const verifyGroupName = async () =>{
+        if(groupFormData.groupName.trim()!==''){
+            try {
+                const response = await fetch('http://localhost:3000/api/v1/verifyGroup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupName: groupFormData.groupName.trim() })
+                  });
+            
+                  const result = await response.json();
+    
+                if(result.success){
+                    setError('');
+                    setIsGroupNameVerified(true);
+                }
+                else{
+                    setGroupFormData({ ...groupFormData, groupName: '' });
+                    setError(`${result.message}`)
+                }
+    
+            } catch (error) {
+                console.error('Error checking Group name:', error);
+                setError('Error checking group name');
+            }
+        }
+        
+    }
+
+    const handleEmailInputChange = (event) => {
+        setEmailInput(event.target.value);
+    };
+
+    const handleAddMember = async () => {
+        if(!groupFormData.members.includes(emailInput)){
+            try {
+                // Call the backend API to check if the email exists
+                const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ emailId: emailInput })
+                });
+          
+                const result = await response.json();
+                
+                if (result.success) {
+                  // If user exists, add to the members list
+                  setGroupFormData((prevData) => ({
+                    ...prevData,
+                    members: [...prevData.members, emailInput]
+                  }));
+                  setEmailInput('');
+                  setError('');
+                } else {
+                  setError('User does not exist');
+                }
+            } catch (error) {
+                console.error('Error checking user:', error);
+                setError('Error checking user');
+            }
+        }
+        else{
+            setError('User already added');
+        }
+        
+    }; 
+
+    const handleRemoveMember = (emailToRemove) => {
+        if(emailToRemove!==emailId){
+            setGroupFormData((prevData) => ({
+                ...prevData,
+                members: prevData.members.filter((email) => email !== emailToRemove)
+            }));
+            setError('');
+        }
+        else{
+            setError("You have to join..")
+        }
+        
+        
+    };
+    
+    const handleCreateGroup = async () => {
+        setLoading(true);
+        // if(!isGroupNameVerified){
+        //     setError('Verify Group Name first');
+        //     setLoading(false);
+        //     return;
+        // }
+        if(groupFormData.groupName.trim() && groupFormData.members.length>1){
+            console.log('Group Data:', groupFormData);
+
+            // join all members in same group 
+            const groupName = groupFormData.groupName.trim();
+            const members = groupFormData.members;
+
+            // db call for store group data
+            try {
+                const response = await fetch('http://localhost:3000/api/v1/createGroup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(
+                        { 
+                            groupName: groupName,
+                            members:members,
+                            groupProfilePic:`https://api.dicebear.com/9.x/initials/svg?seed=${groupName}`
+                        })
+                });
+            
+                const result = await response.json();
+                console.log(result);
+                if(result.success){
+                    setChats((prevChats) => {
+                        const updatedChats = { ...prevChats };
+                        if (!updatedChats[result.group._id]) {
+                            updatedChats[result.group._id] = {type:'Group',messages: [], lastMessage: {}, fullName:result.group.groupName,profilePhoto:result.group.
+                            groupProfilePic,groupId:result.group._id,
+                            members:result.group.members };
+                        }
+                        return updatedChats;
+                    });
+        
+                    setallRooms((prevRooms) => {
+                        const updatedRooms = { ...prevRooms };
+                        console.log(updatedRooms);
+        
+                        // Get the next index (numeric key)
+                        const nextIndex = Object.keys(updatedRooms).length;
+        
+                        // Add the new email/groupName at the next index
+                        updatedRooms[nextIndex] = result.group._id;
+        
+                        return updatedRooms;
+                    });
+
+                    Object.entries(members).map(([key,emailid])=>{
+                        if(emailid!==emailId){
+                            console.log(emailid);
+                            socket.emit('notify', {
+                                emailId:emailid,
+                                groupId:result.group._id,
+                                groupName:groupName
+                            });
+                        }
+                    });
+
+                    toast.success(`${result.message}`)
+
+                }
+
+                else{
+                    toast.error(`${result.message}`);
+                }
+
+            } catch (error) {
+                toast.error('Something Went Wrong');
+            }
+
+            setEmailInput('');
+            setError('');
+            setGroupFormData({
+                groupName: '',
+                members: [emailId]
+            });
+            // setIsGroupNameVerified(false);
+            setLoading(false);
+            handleCloseGroupForm();
+        }
+        else {
+            setError('Add more members...')
+            setLoading(false);
+        }
+       
     };
 
     useEffect(() => {
@@ -204,8 +525,10 @@ const ChatPage = () => {
                     updatedChats[data.sender].fullName = data.fullName;
 
                     updatedChats[data.sender].messages.push({
+                        messageId: data.messageId,
                         message: data.message,
-                        time: data.time
+                        time: data.time,
+                        isSeen: data.isSeen
                     });
 
                     updatedChats[data.sender].lastMessage = {
@@ -218,19 +541,152 @@ const ChatPage = () => {
                 getUserInfo(data.sender);
             });
 
-            if (emailId) {
-                socket.emit('joinRoom', emailId);
-            }
+            socket.on('addGroup',(data)=>{
+                console.log(data);
+                const groupName=data.groupName;
+                const groupId=data.groupId;
+
+                // add group name in room
+                setallRooms((prevRooms) => {
+                    const updatedRooms = { ...prevRooms };
+    
+                    // Get the next index (numeric key)
+                    const nextIndex = Object.keys(updatedRooms).length;
+    
+                    // Add the new email/groupName at the next index
+                    updatedRooms[nextIndex] = data.groupId;
+    
+                    return updatedRooms;
+                });
+
+                // add in chats
+                setChats((prevChats) => {
+                    // later dp will fetched from db
+                    const updatedChats = { ...prevChats };
+                    if (!updatedChats[groupId]) {
+                        updatedChats[groupId] = {type:'Group',messages: [], lastMessage: {}, fullName:groupName,groupId:groupId,profilePhoto:`https://api.dicebear.com/9.x/initials/svg?seed=${groupName}`,
+                        members:'' };
+                    }
+                    return updatedChats;
+                });
+
+            })
+
+            socket.on('receiveGroupMessage',(data) => {
+                console.log(data);
+
+                setChats((prevChats) => {
+                    const updatedChats = { ...prevChats };
+
+                    updatedChats[data.groupName].messages.push({
+                        sender:data.fullName,
+                        message: data.message,
+                        time: data.time
+                    });
+
+                    updatedChats[data.groupName].lastMessage = {
+                        message: data.message,
+                        time: data.time
+                    };
+
+                    return updatedChats;
+                });
+
+            })
+
+            // socket.on('updateMessage',(data)=> {
+            //     console.log(data);
+            //     const messages = chats[data.sender]?.messages;
+            //     const messageIndex = messages.findIndex(message => message.messageId === data.messageId);
+            //     console.log(messageIndex);
+            //     if (messageIndex !== -1) {
+            //         // Update the message in the chats object directly
+            //         const newMessages = [...messages];
+            //         newMessages[messageIndex] = { ...newMessages[messageIndex], isSeen: true };
+
+            //         // Update the chats state with the new messages
+            //         setChats(prevChats => ({
+            //             ...prevChats,
+            //             [currEmailID]: {
+            //                 ...prevChats[currEmailID],
+            //                 messages: newMessages
+            //             }
+            //         }));
+            //         // Object.assign(messages[messageIndex], {isSeen:true});
+            //     }
+            //     console.log(chats[data.sender]);
+            // })
 
             return () => {
                 socket.off('receiveMessage');
+                socket.off('addGroup');
+                socket.off('receiveGroupMessage');
+                // socket.off('seenUpdate');
             };
         }
     }, [socket, emailId]);
 
+    useEffect(() => {
+        if (socket) {
+            socket.on('updateMessage', (data) => {
+                setChats((prevChats) => {
+                    const messages = prevChats[data.sender]?.messages || [];
+                    const messageIndex = messages.findIndex((message) => message.messageId === data.messageId);
+                    
+                    if (messageIndex !== -1) {
+                        const updatedMessages = [...messages];
+                        updatedMessages[messageIndex] = { ...updatedMessages[messageIndex], isSeen: true };
+    
+                        return {
+                            ...prevChats,
+                            [data.sender]: {
+                                ...prevChats[data.sender],
+                                messages: updatedMessages
+                            }
+                        };
+                    }
+                    return prevChats;
+                });
+            });
+    
+            return () => {
+                socket.off('updateMessage');
+            };
+        }
+    }, [socket,chats,currEmailID]);
+
+    useEffect(() => {
+      if(socket){
+    
+        localStorage.setItem(`${emailId}Rooms`, JSON.stringify(allRooms));
+
+        // add user to all room in allRooms
+        Object.entries(allRooms).map(([key,emailId])=>{
+
+            socket.emit('joinRoom', emailId);
+        })
+      }   
+    }, [socket,allRooms])
+    
+    // Focus on the email input when the group name is verified
+    // useEffect(() => {
+    //     if (isGroupNameVerified && emailInputRef.current) {
+    //     emailInputRef.current.focus(); // Move to email field when groupName is verified
+    //     }
+    // }, [isGroupNameVerified]);
+
+    if(mainPageLoad){
+        return (
+            <Box sx={{ display: 'flex' , justifyContent:'center', alignItems:'center'}} className='h-screen'>
+                <CircularProgress />
+            </Box>
+      )}
+
 return (
     <Container maxWidth="lg" className="h-screen flex flex-col p-4">
+
         <div className="flex h-full">
+
             {/* Left Side Chat List */}
             {(showChatList || !isSmallScreen) && (
                 <div className="w-full min-w-[270px] sm:w-1/4 p-2 bg-white shadow rounded-lg sm:mr-4">
@@ -238,6 +694,7 @@ return (
                         <TextField
                             id="standard-basic"
                             placeholder="Search"
+                            margin='dense'
                             slotProps={{
                                 input: {
                                     startAdornment: (
@@ -259,15 +716,110 @@ return (
                     <div  className='flex justify-between pl-4 pr-4'>
                         <p className="mb-2 font-PlaywriteGBS font-semibold">Messages</p>
                         <Tooltip title="Create Group" placement="right">
-                            <Button> <GroupAddIcon/></Button>
+                            <Button onClick={()=>{setopenGroupForm(true)}}> <GroupAddIcon/></Button>
                         </Tooltip>
+
+                        <Dialog
+                            open={openGroupForm}
+                            onClose={handleCloseGroupForm}
+                            PaperProps={{
+                                component: 'form',
+                                onSubmit: (event) => {
+                                  event.preventDefault();
+                                  handleCreateGroup();
+                                }
+                            }}
+                        >
+                            
+                            <DialogTitle>Create New Group</DialogTitle>
+                            <DialogContent>
+                            {/* <DialogContentText>
+                                *Press ENTER after group name input for verification
+                            </DialogContentText> */}
+                            
+                            <TextField
+                                autoFocus
+                                required
+                                margin="normal"
+                                id="groupName"
+                                name="groupName"
+                                label="Group Name"
+                                type="text"
+                                fullWidth
+                                variant="outlined"
+                                value={groupFormData.groupName}
+                                onChange={handleGroupNameChange}
+                                // onKeyDown={(e) => {
+                                //     if (e.key === 'Enter') {
+                                //     e.preventDefault();
+                                //     verifyGroupName();
+                                //     }
+                                // }}
+                                // slotProps={{
+                                //     input: {
+                                //       endAdornment: isGroupNameVerified && (
+                                //         <InputAdornment position="end">
+                                //           <CheckCircleIcon className="text-green-500" />
+                                //         </InputAdornment>
+                                //       ),
+                                //     },
+                                // }}
+                            />
+
+                            
+                            <TextField
+                                margin="normal"
+                                id="email"
+                                name="email"
+                                label="Enter User Email"
+                                type="email"
+                                fullWidth
+                                variant="outlined"
+                                value={emailInput}
+                                onChange={handleEmailInputChange}
+                                // disabled={!isGroupNameVerified}
+                                inputRef={emailInputRef}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddMember();
+                                    }
+                                }}
+                            />
+
+                            {error && <p style={{ color: 'red' }}>{error}</p>}
+                            <List>
+                                {groupFormData.members.map((email, index) => (
+                                    <ListItem key={index}>
+                                    <ListItemText primary={email} />
+                                        <IconButton
+                                        edge="end"
+                                        aria-label="remove"
+                                        onClick={() => handleRemoveMember(email)}
+                                        >
+                                        <CloseIcon />
+                                        </IconButton>
+                                    </ListItem>
+                                ))}
+                            </List>
+                            </DialogContent>
+                            <DialogActions>
+                            <Button onClick={handleCloseGroupForm}>Cancel</Button>
+                            
+                            <Button type="submit" disabled={loading}>
+                              {loading ? <CircularProgress size={24} color="inherit" /> : "Create Group"}
+                            </Button>
+                            </DialogActions>
+                        </Dialog>
+
                     </div>   
                     
 
-                    {Object.keys(chats).map((email, index) => (
+                    {chats && 
+                    Object.keys(chats).map((email, index) => (
                         <div
                         key={index}
-                        onClick={() => currentEmailHandler(email, chats[email].fullName)}
+                        onClick={() => currentEmailHandler(email)}
                         className="font-mono cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition duration-200"
                       >
 
@@ -278,7 +830,9 @@ return (
                       
                         {chats[email].lastMessage && (
                           <p className="text-gray-600 font-arima pl-12">
-                            {chats[email].lastMessage.message} - {chats[email].lastMessage.time}
+                            {chats[email]?.lastMessage?.message?.length > 10 
+                            ? chats[email]?.lastMessage?.message.substring(0, 10) + '...' 
+                            : chats[email]?.lastMessage?.message} - {chats[email]?.lastMessage?.time}
                           </p>
                         )}
                       </div>                      
@@ -295,6 +849,12 @@ return (
                             <div className="flex items-center p-4 bg-gray-200 rounded-lg absolute top-0 w-full left-0">
                                 <Avatar src={chats[currEmailID]?.profilePhoto} />
                                 <Typography variant="font-PTSans"  className="pl-5 text-xl antialiased font-bold">{chats[currEmailID]?.fullName}</Typography>
+                                {
+                                    chats[currEmailID]?.members &&
+
+                                    <Typography variant="font-PTSans"  className="pl-5 text-sm antialiased font-bold">{chats[currEmailID]?.members?.length} members</Typography>
+                                }
+                                
                                 {isSmallScreen && (
                                     <IconButton onClick={toggleChatList} className="ml-auto">
                                         <CloseIcon />
@@ -311,9 +871,29 @@ return (
                                             <Box key={index} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-2`}>
                                                 <Box
                                                     className={`max-w-[70%] p-2 rounded-lg shadow-md ${isUserMessage ? 'bg-indigo-500 text-white' : 'bg-indigo-50 text-black'}`}
-                                                >
+                                                >   
+                                                    {
+                                                        msg?.sender &&
+
+                                                        <Typography variant="body1 font-AfacadFlux" className="break-words block">{msg.sender}</Typography>
+                                                    }
+                                                    
                                                     <Typography variant="body1 font-AfacadFlux" className="break-words">{msg.message}</Typography>
-                                                    <Typography variant="caption font-AfacadFlux" className="text-gray-400 block text-right">{msg.time}</Typography>
+
+                                                    <Box className='flex gap-1'>
+                                                        <Typography variant="caption font-AfacadFlux" className="text-gray-400 block text-right">
+                                                            {msg.time}
+                                                        </Typography>
+
+                                                        { isUserMessage &&
+                                                            <DoneAllOutlinedIcon 
+                                                        sx={{
+                                                            // #3a70f0 797785
+                                                            color: msg.isSeen ? '#7abcfa' :'#cdd1d4'
+                                                        }}/>
+                                                        }
+                                                    </Box>
+                                                   
                                                 </Box>
                                             </Box>
                                         );
@@ -323,7 +903,7 @@ return (
                                 )}
                             </div>
 
-                            <form onSubmit={sendHandler} className="flex p-2">
+                            <form onSubmit={chats[currEmailID]?.type==='Group'? sendGroupMessage : sendHandler} className="flex p-2">
                                 <TextField
                                     id="standard-basic"
                                     placeholder='Your message'
@@ -341,6 +921,7 @@ return (
                     )}
                 </div>
             ) : (null)}
+
         </div>
     </Container>
 );

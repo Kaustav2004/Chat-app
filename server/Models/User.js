@@ -19,7 +19,15 @@ const userSchema = new mongoose.Schema({
     password:{
         type:String,
         required:true
-    }
+    },
+    chats:{
+        type:Object
+    },
+    groups:[{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'Group'
+    }],
+    // undelivered
 })
 
 const User=mongoose.model("User",userSchema);

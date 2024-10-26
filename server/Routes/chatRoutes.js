@@ -1,8 +1,10 @@
 import express from 'express';
-import { checkUser } from '../Controllers/Chat.js';
+import { checkGroupName, checkUser, createGroup } from '../Controllers/Chat.js';
 
 const router = express.Router();
 
 router.post("/checkUser", checkUser);
+router.post("/verifyGroup", checkGroupName);
+router.post("/createGroup", createGroup);
 
 export default router;

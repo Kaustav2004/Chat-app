@@ -42,13 +42,37 @@ io.on('connection', (socket) => {
     console.log(`User with socket ID ${socket.id} joined room: ${emailId}`);
   });
 
+  // for group notification--send from the group creator
+  socket.on('notify',({emailId,groupName,groupId})=>{
+    io.to(emailId).emit('addGroup', { groupName,groupId });
+  })
 
-  // Send message to another user by their room (email)
-  socket.on('sendMessage', ({ sender, receiver, message, time, fullName }) => {
-    console.log(`${sender} sends message to ${receiver}: ${message}`);
-    io.to(receiver).emit('receiveMessage', { sender, message, time, fullName });
+  // Handling chat messages within the group
+  socket.on('sendGroupMessage', ({ groupName, message, sender, time, fullName }) => {
+
+    // Broadcast the message to all users in the group room
+    socket.broadcast.to(groupName).emit('receiveGroupMessage', {
+      sender,
+      message,
+      groupName,
+      time,
+      fullName
+    });
+
   });
 
+  // Send message to another user by their room (email)
+  socket.on('sendMessage', ({ messageId, sender, receiver, message, time, fullName,isSeen }) => {
+    console.log(`${sender} sends message to ${receiver}: ${message}`);
+    io.to(receiver).emit('receiveMessage', { messageId, sender, message, time, fullName, isSeen});
+  });
+
+  // update seen message
+  socket.on('seenUpdate',({messageId, receiver, sender}) => {
+    io.to(receiver).emit('updateMessage', {messageId, sender});
+  })
+
+  // user
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
