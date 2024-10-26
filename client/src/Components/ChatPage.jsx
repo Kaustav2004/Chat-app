@@ -18,6 +18,7 @@ import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
 
 const ChatPage = () => {
     const { emailId } = useParams();
+    const messagesEndRef = useRef(null);
     const localStorageChats = JSON.parse(localStorage.getItem(emailId));
     let myFullName = useRef('');
     const sentMessageIds = useRef(new Set());
@@ -94,6 +95,10 @@ const ChatPage = () => {
         };
     }, []);
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
     const sendHandler = (e) => {
         e.preventDefault();
         const messageId = Date.now();
@@ -117,7 +122,7 @@ const ChatPage = () => {
             setChats((prevChats) => {
                 const updatedChats = { ...prevChats };
                 if (!updatedChats[currEmailID]) {
-                    updatedChats[currEmailID] = { messages: [], lastMessage: {} };
+                    updatedChats[currEmailID] = { messages: [], lastMessage: {},unreadMessages:0 };
                 }
 
                 // check again
@@ -226,6 +231,10 @@ const ChatPage = () => {
     const startChatHandler = async (e) => {
         e.preventDefault();
         if (receiverEmailID !== '') {
+            if(receiverEmailID===emailId){
+                toast.error("It's Your email !!!");
+                return;
+            }
             try {
                 const response = await fetch('http://localhost:3000/api/v1/checkUser', {
                     method: 'POST',
@@ -242,7 +251,7 @@ const ChatPage = () => {
                     setChats((prevChats) => {
                         const updatedChats = { ...prevChats };
                         if (!updatedChats[receiverEmailID]) {
-                            updatedChats[receiverEmailID] = { messages: [], lastMessage: {}, fullName: data.response.fullName,profilePhoto:data.response.profilePhoto };
+                            updatedChats[receiverEmailID] = { messages: [], lastMessage: {}, fullName: data.response.fullName,profilePhoto:data.response.profilePhoto,unreadMessages:0 };
                         }
                         return updatedChats;
                     });
@@ -273,6 +282,11 @@ const ChatPage = () => {
         setopenGroupForm(false);
     };
 
+    // auto scroll handle
+    // useEffect(() => {
+    //     scrollToBottom();
+    // }, [ chats[currEmailID]?.messages]);
+
     useEffect(() => {
       console.log(chats);
       localStorage.setItem(`${emailId}`, JSON.stringify(chats));
@@ -296,7 +310,8 @@ const ChatPage = () => {
             const unreadMessages = allMessages.filter(
                 message => message.isSeen === false && message.side !== 'me' // Ensure only received messages
             );
-    
+            let numOfUnreadMessage=chats[currEmailID].unreadMessages-unreadMessages.length;
+            if(numOfUnreadMessage<0) numOfUnreadMessage=0;
             if (unreadMessages.length > 0) {
                 unreadMessages.forEach(message => {
                     const messageId = message.messageId;
@@ -320,6 +335,7 @@ const ChatPage = () => {
                             ...prevChats,
                             [currEmailID]: {
                                 ...prevChats[currEmailID],
+                                unreadMessages:numOfUnreadMessage,
                                 messages: updatedMessages
                             }
                         };
@@ -330,6 +346,7 @@ const ChatPage = () => {
     }, [currEmailID, chats, emailId, socket]); 
     
     const toggleChatList = () => {
+        setCurrEmailID();
         setShowChatList(true);
     };
 
@@ -337,34 +354,6 @@ const ChatPage = () => {
         // setIsGroupNameVerified(false);
         setGroupFormData({ ...groupFormData, groupName: event.target.value });
     };
-    
-    const verifyGroupName = async () =>{
-        if(groupFormData.groupName.trim()!==''){
-            try {
-                const response = await fetch('http://localhost:3000/api/v1/verifyGroup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ groupName: groupFormData.groupName.trim() })
-                  });
-            
-                  const result = await response.json();
-    
-                if(result.success){
-                    setError('');
-                    setIsGroupNameVerified(true);
-                }
-                else{
-                    setGroupFormData({ ...groupFormData, groupName: '' });
-                    setError(`${result.message}`)
-                }
-    
-            } catch (error) {
-                console.error('Error checking Group name:', error);
-                setError('Error checking group name');
-            }
-        }
-        
-    }
 
     const handleEmailInputChange = (event) => {
         setEmailInput(event.target.value);
@@ -421,12 +410,8 @@ const ChatPage = () => {
     
     const handleCreateGroup = async () => {
         setLoading(true);
-        // if(!isGroupNameVerified){
-        //     setError('Verify Group Name first');
-        //     setLoading(false);
-        //     return;
-        // }
-        if(groupFormData.groupName.trim() && groupFormData.members.length>1){
+
+        if(groupFormData.groupName.trim() && groupFormData.members.length>2){
             console.log('Group Data:', groupFormData);
 
             // join all members in same group 
@@ -519,11 +504,13 @@ const ChatPage = () => {
                 setChats((prevChats) => {
                     const updatedChats = { ...prevChats };
                     if (!updatedChats[data.sender]) {
-                        updatedChats[data.sender] = { messages: [], lastMessage: {},profilePhoto:''};
+                        updatedChats[data.sender] = { messages: [], lastMessage: {},profilePhoto:'',unreadMessages:0};
                     }
 
                     updatedChats[data.sender].fullName = data.fullName;
-
+                    // console.log(updatedChats[data.seder]);
+                    const numOfUnreadMessage=updatedChats[data.sender].unreadMessages+1;
+                    updatedChats[data.sender].unreadMessages=numOfUnreadMessage;
                     updatedChats[data.sender].messages.push({
                         messageId: data.messageId,
                         message: data.message,
@@ -594,34 +581,10 @@ const ChatPage = () => {
 
             })
 
-            // socket.on('updateMessage',(data)=> {
-            //     console.log(data);
-            //     const messages = chats[data.sender]?.messages;
-            //     const messageIndex = messages.findIndex(message => message.messageId === data.messageId);
-            //     console.log(messageIndex);
-            //     if (messageIndex !== -1) {
-            //         // Update the message in the chats object directly
-            //         const newMessages = [...messages];
-            //         newMessages[messageIndex] = { ...newMessages[messageIndex], isSeen: true };
-
-            //         // Update the chats state with the new messages
-            //         setChats(prevChats => ({
-            //             ...prevChats,
-            //             [currEmailID]: {
-            //                 ...prevChats[currEmailID],
-            //                 messages: newMessages
-            //             }
-            //         }));
-            //         // Object.assign(messages[messageIndex], {isSeen:true});
-            //     }
-            //     console.log(chats[data.sender]);
-            // })
-
             return () => {
                 socket.off('receiveMessage');
                 socket.off('addGroup');
                 socket.off('receiveGroupMessage');
-                // socket.off('seenUpdate');
             };
         }
     }, [socket, emailId]);
@@ -668,12 +631,6 @@ const ChatPage = () => {
       }   
     }, [socket,allRooms])
     
-    // Focus on the email input when the group name is verified
-    // useEffect(() => {
-    //     if (isGroupNameVerified && emailInputRef.current) {
-    //     emailInputRef.current.focus(); // Move to email field when groupName is verified
-    //     }
-    // }, [isGroupNameVerified]);
 
     if(mainPageLoad){
         return (
@@ -693,7 +650,7 @@ return (
                     <form className="flex mb-4 " onSubmit={startChatHandler}>
                         <TextField
                             id="standard-basic"
-                            placeholder="Search"
+                            placeholder="Search New User"
                             margin='dense'
                             slotProps={{
                                 input: {
@@ -749,24 +706,8 @@ return (
                                 variant="outlined"
                                 value={groupFormData.groupName}
                                 onChange={handleGroupNameChange}
-                                // onKeyDown={(e) => {
-                                //     if (e.key === 'Enter') {
-                                //     e.preventDefault();
-                                //     verifyGroupName();
-                                //     }
-                                // }}
-                                // slotProps={{
-                                //     input: {
-                                //       endAdornment: isGroupNameVerified && (
-                                //         <InputAdornment position="end">
-                                //           <CheckCircleIcon className="text-green-500" />
-                                //         </InputAdornment>
-                                //       ),
-                                //     },
-                                // }}
                             />
 
-                            
                             <TextField
                                 margin="normal"
                                 id="email"
@@ -820,7 +761,7 @@ return (
                         <div
                         key={index}
                         onClick={() => currentEmailHandler(email)}
-                        className="font-mono cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition duration-200"
+                        className="font-mono cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition duration-200 relative"
                       >
 
                         <div className="font-bold font-arima text-lg flex gap-2 items-center">
@@ -835,6 +776,9 @@ return (
                             : chats[email]?.lastMessage?.message} - {chats[email]?.lastMessage?.time}
                           </p>
                         )}
+                        { chats[email].unreadMessages>0 &&
+                            <div className='rounded-full bg-green-400 text-white z-10 absolute right-2 bottom-6 p-2 size-6 flex items-center justify-center'>{chats[email].unreadMessages}</div>
+                        }
                       </div>                      
                     ))}
                 </div>
@@ -901,6 +845,7 @@ return (
                                 ) : (
                                     <Typography variant="body2 font-AfacadFlux" className="text-gray-500 text-center mt-4 flex justify-center">No messages yet. Start the conversation!</Typography>
                                 )}
+                                {/* <div ref={messagesEndRef} /> */}
                             </div>
 
                             <form onSubmit={chats[currEmailID]?.type==='Group'? sendGroupMessage : sendHandler} className="flex p-2">
