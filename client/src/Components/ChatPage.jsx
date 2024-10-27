@@ -38,9 +38,13 @@ const ChatPage = () => {
     const [loading, setLoading] = useState(false);
     const [emailInput, setEmailInput] = useState('');
     const [allRooms, setallRooms] = useState([emailId]);
+    const [profileDetails, setprofileDetails] = useState(false);
+    const [profileSkeleton, setprofileSkeleton] = useState(false);
+    const [userDetails, setuserDetails] = useState('');
     // const [isGroupNameVerified, setIsGroupNameVerified] = useState(false);
     const isSmallScreen = useMediaQuery('(max-width: 600px)');
     const emailInputRef = useRef(null);
+    const [showImageFullscreen, setShowImageFullscreen] = useState(false);
 
     useEffect(  () => {
         setmainPageLoad(true);
@@ -497,6 +501,39 @@ const ChatPage = () => {
        
     };
 
+    const handleFetchUserInfo = async (email) =>{
+        setprofileSkeleton(true);
+
+        try {
+            const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emailId: email })
+            });
+
+            const data = await response.json();
+
+            if(data.success){
+                setuserDetails({
+                    fullName:data.response.fullName,
+                    userName:data.response.userName,
+                    emailID:data.response.emailId,
+                    profilePic:data.response.profilePhoto,
+                })
+                setprofileDetails(true);
+            }
+            else{
+                toast.error(`${data.message}`);
+            }
+
+            console.log(data);
+        } catch (error) {
+            toast.error(`${error}`);
+        }
+
+        setprofileSkeleton(false);
+    }
+
     useEffect(() => {
         if (socket) {
             socket.on('receiveMessage', (data) => {
@@ -787,11 +824,50 @@ return (
             {/* Right Side Chat Area */}
             {!showChatList || !isSmallScreen ? (
                 <div className="w-full sm:w-3/4 p-2 bg-opacity-5 bg-cyan-200 shadow rounded-lg relative">
+                         {profileDetails && (
+                            <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black bg-opacity-50">
+                                <div className="p-4 bg-white rounded-lg shadow-lg text-center">
+                                    <Avatar
+                                        src={userDetails?.profilePic}
+                                        sx={{ width: 80, height: 80 }}
+                                        className="mx-auto mb-4 border-2 border-blue-500 cursor-pointer"
+                                        onClick={() => setShowImageFullscreen(true)}
+                                    />
+                                    <Typography variant="h6">{userDetails?.fullName}</Typography>
+                                    <Typography variant="body1" className='text-gray-500'>{userDetails?.userName}</Typography>
+                                    <Typography variant="body2" color="textSecondary">{userDetails?.emailID}</Typography>
+                                    <button
+                                        onClick={() => setprofileDetails(false)}
+                                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {showImageFullscreen && (
+                            <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
+                                <img
+                                    src={userDetails?.profilePic}
+                                    alt="Profile Fullscreen"
+                                    className="max-w-full max-h-full rounded-lg shadow-lg"
+                                />
+                                <button
+                                    onClick={() => setShowImageFullscreen(false)}
+                                    className="absolute top-5 right-5 text-white text-2xl bg-gray-800 rounded-full p-2"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        )}
+
                     {currEmailID && (
                         <div className="flex flex-col h-full">
                             {/* Chat header with Close Icon for small screens */}
                             <div className="flex items-center p-4 bg-gray-200 rounded-lg absolute top-0 w-full left-0">
-                                <Avatar src={chats[currEmailID]?.profilePhoto} />
+                                <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchUserInfo(currEmailID)}} className='cursor-pointer'/>
+                        
                                 <Typography variant="font-PTSans"  className="pl-5 text-xl antialiased font-bold">{chats[currEmailID]?.fullName}</Typography>
                                 {
                                     chats[currEmailID]?.members &&
