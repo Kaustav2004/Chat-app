@@ -1,5 +1,44 @@
 import User from '../Models/User.js';
 import Group from '../Models/Group.js'
+import { uploadCloudinary } from '../Util/uploadCloudinary.js';
+import multer from 'multer';
+import { deleteCloudinary } from '../Util/deleteCloudinary.js';
+import path from 'path';
+import fs from 'fs';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const uploadDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ storage });
+
+// Function to delete an image file
+const deleteImage = (filename) => {
+    const filePath = path.join(__dirname, '../uploads', filename);
+    // console.log(filePath);
+
+    fs.unlink(filePath, (err) => {
+        if (err) {
+            // console.error('Error deleting file:', err);
+            return { success: false, message: 'File deletion failed.' };
+        }
+        // console.log('File deleted successfully:', filename);
+    });
+};
 
 export const checkUser = async (req, res) => {
     try {
@@ -29,7 +68,7 @@ export const checkUser = async (req, res) => {
     }
 }
 
-export const checkGroupName = async (req,res)=>{
+export const checkGroupName = async (req,res) => {
     try{
         const {groupName} = req.body;
         const response = await Group.findOne({groupName:groupName});
@@ -56,7 +95,7 @@ export const checkGroupName = async (req,res)=>{
     }
 }
 
-export const createGroup = async (req,res)=>{
+export const createGroup = async (req,res) => {
     try{
         const {groupName,members,groupProfilePic} = req.body;
         
@@ -88,6 +127,104 @@ export const createGroup = async (req,res)=>{
         return res.status(500).json({
             success: false,
             message: err.message
+        });
+    }
+}
+
+export const imageUpload = async (req,res) => {
+    try {
+        const file = req.file;
+        const emailId = req.body.emailId;
+        const prevURL = req.body.prevURL;
+
+        const filePath = path.join(uploadDir, file.filename);
+        const url = await uploadCloudinary(filePath);
+
+        // change in DB
+        await User.findOneAndUpdate({emailId:emailId},
+            {profilePhoto:url.secure_url}
+        )
+
+        if(prevURL){
+            await deleteCloudinary(prevURL);
+        }
+
+        if (file.filename) {
+            // console.log(file.filename);
+            deleteImage(file.filename);
+        }
+
+        return res.status(200).json({
+            success:true,
+            message:"Image Updated",
+            response:url.secure_url
+        })
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+} 
+
+export const uploadMiddleware = upload.single('file');
+
+export const updateName = async (req,res) => {
+    try {
+        const {emailId,fullName} = req.body;
+        
+        await User.findOneAndUpdate({emailId:emailId},{
+            fullName:fullName
+        })
+
+        return res.status(200).json({
+            success:true,
+            message:"Name Updated Successfully"
+        })
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+}
+
+export const deleteAccount = async (req,res) => {
+    try {
+        const {emailId} = req.body;
+        const user = await User.findOne({emailId:emailId});
+        const result = await User.findOneAndDelete({emailId:emailId});
+
+        if (result) {
+            // remove from all added group and delete dp from cloudinary
+            const profilePic=user.profilePhoto;
+            await deleteCloudinary(profilePic);
+
+            // Remove user from all groups
+            await Group.updateMany(
+                { members: emailId },
+                { $pull: { members: emailId } }
+            );
+
+            return res.status(200).json({
+                success:true,
+                message:"Account Deleted"
+            })
+        } else {
+            return res.json({
+                success:false,
+                message:"Account not Deleted"
+            })
+        }
+        
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: error.message
         });
     }
 }

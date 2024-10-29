@@ -114,6 +114,28 @@ const AuthPage = () => {
       setError("Passwords do not match!");
       return;
     }
+    const minLengthPattern = /.{8,}/;
+    const uppercasePattern = /[A-Z]/;
+    const numberPattern = /[0-9]/;
+    const specialCharPattern = /[!@#$%^&*(),.?":{}|<>]/;
+
+    // Check if the password meets all criteria
+    if (!minLengthPattern.test(signupData.password)) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (!uppercasePattern.test(signupData.password)) {
+        setError ('Password must contain at least one uppercase letter.');
+        return;
+    }
+    if (!numberPattern.test(signupData.password)) {
+        setError ('Password must contain at least one number.');
+        return;
+    }
+    if (!specialCharPattern.test(signupData.password)) {
+        setError ('Password must contain at least one special character.');
+         return;
+    }
     setError("");
     console.log(signupData);
     setIsLoading(true);
@@ -224,7 +246,7 @@ const AuthPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-md p-8">
+      <div className="w-full h-fit max-w-md bg-white rounded-lg shadow-md p-8 ">
         {!isOtpScreen ? (
           isLogin ? (
             // Login form
@@ -305,6 +327,7 @@ const AuthPage = () => {
                 label="Password"
                 type="password"
                 variant="outlined"
+                helperText='Password must be at least 8 characters long and include 1 uppercase letter, 1 number, and 1 special character '
                 onChange={onChangeSignUpHandler}
                 value={signupData.password}
                 className="mb-4"

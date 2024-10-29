@@ -2,7 +2,7 @@ import React, { useEffect, useState,useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Avatar, Box, Button, Container, TextField, Typography, IconButton,InputAdornment,Tooltip,List,ListItem,ListItemText,Backdrop,CircularProgress } from '@mui/material';
 import toast from 'react-hot-toast';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import CloseIcon from '@mui/icons-material/Close';
 import { useMediaQuery } from '@mui/material';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
@@ -18,9 +18,11 @@ import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
 
 const ChatPage = () => {
     const { emailId } = useParams();
+    const navigate = useNavigate();
     const messagesEndRef = useRef(null);
     const localStorageChats = JSON.parse(localStorage.getItem(emailId));
-    let myFullName = useRef('');
+    const myFullName = useRef('');
+    const myProfilePic = useRef('');
     const sentMessageIds = useRef(new Set());
     const [socket, setSocket] = useState(null);
     const [receiverEmailID, setReceiverEmailID] = useState('');
@@ -60,6 +62,7 @@ const ChatPage = () => {
                 const data = await response.json();
                 console.log(data);
                 myFullName.current=data.response.fullName;
+                myProfilePic.current = data.response.profilePhoto;
     
             } catch (error) {
                 console.log(error);
@@ -683,7 +686,8 @@ return (
 
             {/* Left Side Chat List */}
             {(showChatList || !isSmallScreen) && (
-                <div className="w-full min-w-[270px] sm:w-1/4 p-2 bg-white shadow rounded-lg sm:mr-4">
+                <div className="w-full min-w-[270px] sm:w-1/4 p-2 bg-white shadow rounded-lg sm:mr-4 min-h-fit">
+                    <Avatar src={myProfilePic.current} onClick={()=>{navigate(`/${emailId}/updateDetails`)}} className='cursor-pointer'/>
                     <form className="flex mb-4 " onSubmit={startChatHandler}>
                         <TextField
                             id="standard-basic"

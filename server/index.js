@@ -5,6 +5,7 @@ import cors from 'cors';
 import dbConnect from './Config/Database.js';
 import authRoutes from './Routes/authRoutes.js';
 import chatRoutes from './Routes/chatRoutes.js';
+import bodyParser from 'body-parser';
 
 const app = express();
 
@@ -19,9 +20,17 @@ const io = new Server(server, {
 });
 
 // Middlewares
-app.use(express.json());
-app.use(cors());
 
+app.use('/uploads', express.static('uploads'));
+
+app.use(express.json());
+
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+}));
+// app.use(cors());
 
 // Default route
 app.get('/', (req, res) => {

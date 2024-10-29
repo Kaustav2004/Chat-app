@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AuthPage from './Components/AuthPage';
 import { Route,Routes,useNavigate } from 'react-router-dom';
 import ChatPage from './Components/ChatPage';
+import UpdateProfile from './Components/updateProfile';
 
 const App = () => {
   const [userId, setUserId] = useState("");
@@ -39,6 +40,7 @@ const App = () => {
       <Routes>
         <Route path='/auth' element={<AuthPage/>}/>
         <Route path="/chat/:emailId" element={<ChatPage/> }/>
+        <Route path="/:emailId/updateDetails" element={<UpdateProfile/>} />
         <Route path="*" element={<div>NO PAGE</div>} />
       </Routes>
 
