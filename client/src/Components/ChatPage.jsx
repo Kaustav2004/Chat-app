@@ -81,87 +81,106 @@ const ChatPage = () => {
 
       const GreyStyledBadge = styled(Badge)(({ theme }) => ({
         '& .MuiBadge-badge': {
-          backgroundColor: '#b0b0b0',  // Set to grey color
+          backgroundColor: '#b0b0b0',
           color: '#b0b0b0',
           boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-          '&::after': {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            borderRadius: '50%',
-            animation: 'ripple 1.2s infinite ease-in-out',
-            border: '1px solid currentColor',
-            content: '""',
-          },
-        },
-        '@keyframes ripple': {
-          '0%': {
-            transform: 'scale(.8)',
-            opacity: 1,
-          },
-          '100%': {
-            transform: 'scale(2.4)',
-            opacity: 0,
-          },
         },
       }));
-
       
-    useEffect(  () => {
+      useEffect(() => {
         setmainPageLoad(true);
         const newSocket = io('http://localhost:3000');
-        const fetchInfo = async ()=>{
+    
+        const fetchUserInfo = async () => {
             try {
                 const response = await fetch('http://localhost:3000/api/v1/checkUser', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ emailId: emailId })
+                    body: JSON.stringify({ emailId: emailId }),
                 });
-    
                 const data = await response.json();
                 console.log(data);
-                myFullName.current=data.response.fullName;
+    
+                // Update profile info
+                myFullName.current = data.response.fullName;
                 myProfilePic.current = data.response.profilePhoto;
     
+                await fetchChatStatuses(); // Call to fetch chat statuses
             } catch (error) {
-                console.log(error);
-            }
-            finally {
+                console.error('Error fetching user info:', error);
+            } finally {
                 setmainPageLoad(false);
             }
-        }
-
-        fetchInfo();
-
-        // store rooms from db
+        };
+    
+        const fetchChatStatuses = async () => {
+            try {
+                const promises = Object.keys(chats).map(async (email) => {
+                    const response = await fetch('http://localhost:3000/api/v1/fetchStatus', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ emailId: email }),
+                    });
+    
+                    // Check for response validity
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+    
+                    const data = await response.json();
+                    return data.success ? { email, status: data.status } : null; // Return status
+                });
+    
+                // Wait for all promises to resolve
+                const results = await Promise.all(promises);
+                
+                // Update chats state with valid results
+                setChats((prevChats) => {
+                    const updatedChats = { ...prevChats };
+                    results.forEach((result) => {
+                        if (result) {
+                            updatedChats[result.email] = {
+                                ...updatedChats[result.email],
+                                status: result.status,
+                            };
+                        }
+                    });
+                    return updatedChats;
+                });
+            } catch (error) {
+                console.error('Error fetching chat statuses:', error);
+            }
+        };
+    
+        fetchUserInfo();
+    
+        // Store rooms from local storage
         const roomsFromStorage = JSON.parse(localStorage.getItem(`${emailId}Rooms`));
-
         console.log(roomsFromStorage);
-
-        if(roomsFromStorage!==null && roomsFromStorage!==undefined){
+        if (roomsFromStorage) {
             setallRooms(roomsFromStorage);
         }
-
+    
+        // Socket event handlers
         newSocket.on('connect', () => {
             console.log('Connected to the server with id:', newSocket.id);
         });
-
+    
         newSocket.on('disconnect', () => {
             console.log('Disconnected from the server');
         });
-
+    
         newSocket.on('connect_error', (err) => {
             console.error('Connection Error:', err);
         });
-
-        setSocket(newSocket);
-
+    
+        setSocket(newSocket); // Set the socket state
+    
         return () => {
-            newSocket.disconnect();
+            newSocket.disconnect(); // Clean up the socket on unmount
         };
-    }, []);
+    }, []); // Add dependencies to rerun when these change
+    
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -682,8 +701,7 @@ const ChatPage = () => {
 
             })
 
-            socket.on('currStatus',(data)=> {
-                console.log(data.userId);
+            socket.on('currStatus',(data) => {
                 setChats((prevChats) => {
                     const updatedChats = { ...prevChats };
                     if (updatedChats[data.userId]) {
@@ -697,6 +715,7 @@ const ChatPage = () => {
                 socket.off('receiveMessage');
                 socket.off('addGroup');
                 socket.off('receiveGroupMessage');
+                socket.off('currStatus');
             };
         }
     }, [socket, emailId]);

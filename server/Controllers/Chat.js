@@ -228,6 +228,48 @@ export const deleteAccount = async (req,res) => {
     }
 }
 
+export const updateStatus = async (req,res)=>{
+    try{
+        const {emailId,status} = req.body;
+        await User.findOneAndUpdate({emailId:emailId},{
+            currStatus:status
+        })
+
+        return res.status(200).json({
+            success:true,
+            message:"updated Successfully"
+        })
+
+    }
+    catch(err){
+        console.error(err);
+        return res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+}
+
+export const fetchStatus = async (req,res)=>{
+    try{
+        const {emailId} = req.body;
+        const user = await User.findOne({emailId:emailId});
+        console.log(user);
+        return res.status(200).json({
+            success:true,
+            message:"fetched Successfully",
+            status:user.currStatus
+        })
+
+    }
+    catch(err){
+        console.error(err);
+        return res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+}
 export const backUpChat = async (req,res)=>{
     try{
         const {emailId,chats} = req.body;

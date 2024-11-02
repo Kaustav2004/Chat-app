@@ -27,6 +27,9 @@ const userSchema = new mongoose.Schema({
         type:mongoose.Schema.Types.ObjectId,
         ref:'Group'
     }],
+    currStatus:{
+        type:String
+    }
     // undelivered
 })
 

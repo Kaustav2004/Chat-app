@@ -5,7 +5,6 @@ import cors from 'cors';
 import dbConnect from './Config/Database.js';
 import authRoutes from './Routes/authRoutes.js';
 import chatRoutes from './Routes/chatRoutes.js';
-import bodyParser from 'body-parser';
 
 const app = express();
 
@@ -46,13 +45,30 @@ io.on('connection', (socket) => {
   console.log('a user connected:', socket.id);
 
   // Handle user joining a personal room based on emailId
-  socket.on('joinRoom', (emailId) => {
+  socket.on('joinRoom', async (emailId) => {
     socket.join(emailId);
     socket.emailId = emailId;
     console.log(`User with socket ID ${socket.id} joined room: ${emailId}`);
 
     // Emit the 'online' event to all clients or specific ones as needed
     io.emit("currStatus", { userId: emailId, status: "online" }); 
+
+    // upadte on db
+    try {
+      const response = await fetch('http://localhost:3000/api/v1/updateStatus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailId: emailId, status:"online" })
+      });
+
+      const data = await response.json();
+      if(!data.success){
+        console.log(data.message);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
   });
 
   // for group notification--send from the group creator
@@ -88,12 +104,28 @@ io.on('connection', (socket) => {
 
   // user
   // Handle disconnection
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
 
     console.log(socket.emailId);
     // socket emit that ensure that user is offline
     io.emit("currStatus", { userId: socket.emailId, status: "offline" }); 
+
+    // upadte on db
+    try {
+      const response = await fetch('http://localhost:3000/api/v1/updateStatus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailId: socket.emailId, status:"offline" })
+      });
+
+      const data = await response.json();
+      if(!data.success){
+        console.log(data.message);
+      }
+    } catch (error) {
+      console.log(error);
+    }
   });
 });
 
