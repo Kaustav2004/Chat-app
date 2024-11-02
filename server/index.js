@@ -48,7 +48,11 @@ io.on('connection', (socket) => {
   // Handle user joining a personal room based on emailId
   socket.on('joinRoom', (emailId) => {
     socket.join(emailId);
+    socket.emailId = emailId;
     console.log(`User with socket ID ${socket.id} joined room: ${emailId}`);
+
+    // Emit the 'online' event to all clients or specific ones as needed
+    io.emit("currStatus", { userId: emailId, status: "online" }); 
   });
 
   // for group notification--send from the group creator
@@ -81,10 +85,15 @@ io.on('connection', (socket) => {
     io.to(receiver).emit('updateMessage', {messageId, sender});
   })
 
+
   // user
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
+
+    console.log(socket.emailId);
+    // socket emit that ensure that user is offline
+    io.emit("currStatus", { userId: socket.emailId, status: "offline" }); 
   });
 });
 

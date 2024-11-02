@@ -15,6 +15,8 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'; 
 import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
+import { styled } from '@mui/material/styles';
+import Badge from '@mui/material/Badge';
 
 const ChatPage = () => {
     const { emailId } = useParams();
@@ -48,6 +50,65 @@ const ChatPage = () => {
     const emailInputRef = useRef(null);
     const [showImageFullscreen, setShowImageFullscreen] = useState(false);
 
+    const StyledBadge = styled(Badge)(({ theme }) => ({
+        '& .MuiBadge-badge': {
+          backgroundColor: '#44b700',
+          color: '#44b700',
+          boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
+          '&::after': {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            animation: 'ripple 1.2s infinite ease-in-out',
+            border: '1px solid currentColor',
+            content: '""',
+          },
+        },
+        '@keyframes ripple': {
+          '0%': {
+            transform: 'scale(.8)',
+            opacity: 1,
+          },
+          '100%': {
+            transform: 'scale(2.4)',
+            opacity: 0,
+          },
+        },
+      }));
+
+      const GreyStyledBadge = styled(Badge)(({ theme }) => ({
+        '& .MuiBadge-badge': {
+          backgroundColor: '#b0b0b0',  // Set to grey color
+          color: '#b0b0b0',
+          boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
+          '&::after': {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            animation: 'ripple 1.2s infinite ease-in-out',
+            border: '1px solid currentColor',
+            content: '""',
+          },
+        },
+        '@keyframes ripple': {
+          '0%': {
+            transform: 'scale(.8)',
+            opacity: 1,
+          },
+          '100%': {
+            transform: 'scale(2.4)',
+            opacity: 0,
+          },
+        },
+      }));
+
+      
     useEffect(  () => {
         setmainPageLoad(true);
         const newSocket = io('http://localhost:3000');
@@ -129,7 +190,7 @@ const ChatPage = () => {
             setChats((prevChats) => {
                 const updatedChats = { ...prevChats };
                 if (!updatedChats[currEmailID]) {
-                    updatedChats[currEmailID] = { messages: [], lastMessage: {},unreadMessages:0 };
+                    updatedChats[currEmailID] = { messages: [], lastMessage: {},unreadMessages:0, status:'' };
                 }
 
                 // check again
@@ -621,6 +682,17 @@ const ChatPage = () => {
 
             })
 
+            socket.on('currStatus',(data)=> {
+                console.log(data.userId);
+                setChats((prevChats) => {
+                    const updatedChats = { ...prevChats };
+                    if (updatedChats[data.userId]) {
+                        updatedChats[data.userId].status = data.status;
+                    }
+                    return updatedChats;
+                });
+            })
+
             return () => {
                 socket.off('receiveMessage');
                 socket.off('addGroup');
@@ -629,6 +701,16 @@ const ChatPage = () => {
         }
     }, [socket, emailId]);
 
+    useEffect(() => {
+        if(emailId && currEmailID){
+            console.log("emit for checking status")
+            socket.emit('status',{
+                sender: currEmailID,
+                receiver: emailId
+            });
+        }
+    }, [currEmailID,emailId])
+    
     useEffect(() => {
         if (socket) {
             socket.on('updateMessage', (data) => {
@@ -840,6 +922,7 @@ return (
                                     <Typography variant="h6">{userDetails?.fullName}</Typography>
                                     <Typography variant="body1" className='text-gray-500'>{userDetails?.userName}</Typography>
                                     <Typography variant="body2" color="textSecondary">{userDetails?.emailID}</Typography>
+
                                     <button
                                         onClick={() => setprofileDetails(false)}
                                         className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg"
@@ -870,7 +953,28 @@ return (
                         <div className="flex flex-col h-full">
                             {/* Chat header with Close Icon for small screens */}
                             <div className="flex items-center p-4 bg-gray-200 rounded-lg absolute top-0 w-full left-0">
-                                <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchUserInfo(currEmailID)}} className='cursor-pointer'/>
+                                {
+                                    chats[currEmailID]?.status === 'online' ? (
+                                        <StyledBadge
+                                            overlap="circular"
+                                            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                            variant="dot"
+                                            >
+                                                <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchUserInfo(currEmailID)}} className='cursor-pointer'/>
+                                        </StyledBadge>
+                                    ):(
+                                        <GreyStyledBadge
+                                        overlap="circular"
+                                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                        variant="dot"
+                                        >
+                                        <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchUserInfo(currEmailID)}} className='cursor-pointer'/>
+                                        </GreyStyledBadge>
+                                        
+                                    )
+                                }
+                                        
+                               
                         
                                 <Typography variant="font-PTSans"  className="pl-5 text-xl antialiased font-bold">{chats[currEmailID]?.fullName}</Typography>
                                 {

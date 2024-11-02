@@ -150,7 +150,6 @@ export const imageUpload = async (req,res) => {
         }
 
         if (file.filename) {
-            // console.log(file.filename);
             deleteImage(file.filename);
         }
 
