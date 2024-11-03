@@ -271,6 +271,24 @@ export const fetchStatus = async (req,res)=>{
     }
 }
 
+export const fetchGroupInfo = async (req,res) => {
+    
+    const {id} = req.body;
+
+    try {
+        const response = await Group.findById(id);
+        return res.status(200).json({
+            success:true,
+            message:"Successfully fetched group info",
+            response:response
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+}
 export const backUpChat = async (req,res)=>{
     try{
         const {emailId,chats} = req.body;

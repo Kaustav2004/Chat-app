@@ -113,36 +113,29 @@ const ChatPage = () => {
                 }
                 else{
                     // fetch from db for groups
-                    // setallRooms( prevRooms => {
-                        // const updatedRooms = {...prevRooms};
-                        const groups = data.response.groups;
-                        console.log(groups);
-                        groups.forEach(group => {
-                            setallRooms(prevRooms => {
-                                const updatedRooms = {...prevRooms};
-                                // Get the next index (numeric key)
-                                const nextIndex = Object.keys(updatedRooms).length;
-                
-                                // Add the new email/groupName at the next index
-                                updatedRooms[nextIndex] = group._id;
-                                
-                                return updatedRooms;
-                            })
-                            setChats((prevChats) => {
-                                // later dp will fetched from db
-                                const updatedChats = { ...prevChats };
-                                if (!updatedChats[group._id]) {
-                                    updatedChats[group._id] = {type:'Group',messages: [], lastMessage: {}, fullName:group.groupName,groupId:group._id,profilePhoto:group.groupProfilePic,unreadMessages:0,
-                                    members:group.members };
-                                }
-                                return updatedChats;
-                            });
-                        });
-                        // prevRooms.push()
-                        
+                    const groups = data.response.groups;
+                    console.log(groups);
+                    groups.forEach(group => {
+                        setallRooms(prevRooms => {
+                            const updatedRooms = {...prevRooms};
+                            // Get the next index (numeric key)
+                            const nextIndex = Object.keys(updatedRooms).length;
             
-                    //     return updatedRooms;
-                    // })
+                            // Add the new email/groupName at the next index
+                            updatedRooms[nextIndex] = group._id;
+
+                            return updatedRooms;
+                        })
+                        setChats((prevChats) => {
+                            // later dp will fetched from db
+                            const updatedChats = { ...prevChats };
+                            if (!updatedChats[group._id]) {
+                                updatedChats[group._id] = {type:'Group',messages: [], lastMessage: {}, fullName:group.groupName,groupId:group._id,profilePhoto:group.groupProfilePic,unreadMessages:0,
+                                members:group.members };
+                            }
+                            return updatedChats;
+                        });
+                    });
                 }
                 
                 await fetchChatStatuses(); // Call to fetch chat statuses
@@ -674,6 +667,40 @@ const ChatPage = () => {
         setprofileSkeleton(false);
     }
 
+    const handleFetchGroupInfo = async (groupId) =>{
+        setprofileSkeleton(true);
+
+        try {
+            const response = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: groupId })
+            });
+
+            const data = await response.json();
+
+            if(data.success){
+                setuserDetails({
+                    fullName:data.response.groupName,
+                    profilePic:data.response.groupProfilePic,
+                    members:data.response.members,
+                    created:data.response.createdAt,
+                    updated:data.response.updatedAt
+                })
+                setprofileDetails(true);
+            }
+            else{
+                toast.error(`${data.message}`);
+            }
+
+            console.log(data);
+        } catch (error) {
+            toast.error(`${error}`);
+        }
+
+        setprofileSkeleton(false);
+    }
+
     useEffect(() => {
         if (socket) {
             socket.on('receiveMessage', (data) => {
@@ -999,7 +1026,18 @@ return (
                                     <Typography variant="h6">{userDetails?.fullName}</Typography>
                                     <Typography variant="body1" className='text-gray-500'>{userDetails?.userName}</Typography>
                                     <Typography variant="body2" color="textSecondary">{userDetails?.emailID}</Typography>
-
+                                    {
+                                        userDetails?.members &&
+                                        <>  
+                                            <Typography variant='h5'>Members</Typography>
+                                            <ul>
+                                                {Object.values(userDetails?.members).map((member, index) => (
+                                                    <li key={index}>{member}</li>
+                                                ))}
+                                            </ul>
+                                        </>
+                                    }
+                                    
                                     <button
                                         onClick={() => setprofileDetails(false)}
                                         className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg"
@@ -1032,7 +1070,7 @@ return (
                             <div className="flex items-center p-4 bg-gray-200 rounded-lg absolute top-0 w-full left-0">
                                 {
                                     chats[currEmailID]?.type==='Group' ? (
-                                        <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchUserInfo(currEmailID)}} className='cursor-pointer'/>
+                                        <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchGroupInfo(currEmailID)}} className='cursor-pointer'/>
                                     ):(
                                         
                                             chats[currEmailID]?.status === 'online' ? (
@@ -1057,9 +1095,6 @@ return (
                                     )
                                 }
                                 
-                                        
-                               
-                        
                                 <Typography variant="font-PTSans"  className="pl-5 text-xl antialiased font-bold">{chats[currEmailID]?.fullName}</Typography>
                                 {
                                     chats[currEmailID]?.members &&
