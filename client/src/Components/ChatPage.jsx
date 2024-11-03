@@ -79,15 +79,15 @@ const ChatPage = () => {
         },
       }));
 
-      const GreyStyledBadge = styled(Badge)(({ theme }) => ({
-        '& .MuiBadge-badge': {
-          backgroundColor: '#b0b0b0',
-          color: '#b0b0b0',
-          boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-        },
-      }));
+    const GreyStyledBadge = styled(Badge)(({ theme }) => ({
+    '& .MuiBadge-badge': {
+        backgroundColor: '#b0b0b0',
+        color: '#b0b0b0',
+        boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
+    },
+    }));
       
-      useEffect(() => {
+    useEffect(() => {
         setmainPageLoad(true);
         const newSocket = io('http://localhost:3000');
     
@@ -104,8 +104,9 @@ const ChatPage = () => {
                 // Update profile info
                 myFullName.current = data.response.fullName;
                 myProfilePic.current = data.response.profilePhoto;
-    
+
                 await fetchChatStatuses(); // Call to fetch chat statuses
+
             } catch (error) {
                 console.error('Error fetching user info:', error);
             } finally {
@@ -114,42 +115,48 @@ const ChatPage = () => {
         };
     
         const fetchChatStatuses = async () => {
-            try {
-                const promises = Object.keys(chats).map(async (email) => {
-                    const response = await fetch('http://localhost:3000/api/v1/fetchStatus', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ emailId: email }),
-                    });
-    
-                    // Check for response validity
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-    
-                    const data = await response.json();
-                    return data.success ? { email, status: data.status } : null; // Return status
-                });
-    
-                // Wait for all promises to resolve
-                const results = await Promise.all(promises);
-                
-                // Update chats state with valid results
-                setChats((prevChats) => {
-                    const updatedChats = { ...prevChats };
-                    results.forEach((result) => {
-                        if (result) {
-                            updatedChats[result.email] = {
-                                ...updatedChats[result.email],
-                                status: result.status,
-                            };
+            if(!chats){
+                try {
+                    const promises = Object.keys(chats).map(async (email) => {
+                        if(chats[email]?.type !== 'Group'){
+                            const response = await fetch('http://localhost:3000/api/v1/fetchStatus', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ emailId: email }),
+                            });
+            
+                            // Check for response validity
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+            
+                            const data = await response.json();
+                            return data.success ? { email, status: data.status } : null; // Return status
                         }
+                        
                     });
-                    return updatedChats;
-                });
-            } catch (error) {
-                console.error('Error fetching chat statuses:', error);
+        
+                    // Wait for all promises to resolve
+                    const results = await Promise.all(promises);
+                    
+                    // Update chats state with valid results
+                    setChats((prevChats) => {
+                        const updatedChats = { ...prevChats };
+                        results.forEach((result) => {
+                            if (result) {
+                                updatedChats[result.email] = {
+                                    ...updatedChats[result.email],
+                                    status: result.status,
+                                };
+                            }
+                        });
+                        return updatedChats;
+                    });
+                } catch (error) {
+                    console.error('Error fetching chat statuses:', error);
+                }    
             }
+            
         };
     
         fetchUserInfo();
@@ -179,7 +186,7 @@ const ChatPage = () => {
         return () => {
             newSocket.disconnect(); // Clean up the socket on unmount
         };
-    }, []); // Add dependencies to rerun when these change
+    }, []);
     
 
     const scrollToBottom = () => {
@@ -244,7 +251,7 @@ const ChatPage = () => {
         e.preventDefault();
 
         if (message !== '' && currEmailID) {
-            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            const timestamp = Date().split("GMT")[0].trim();
 
             socket.emit('sendGroupMessage', {
                 groupName:currEmailID,
@@ -391,8 +398,22 @@ const ChatPage = () => {
     
     useEffect(() => {
         if (currEmailID && chats[currEmailID]) {
-            const allMessages = chats[currEmailID].messages || [];
-    
+            if(chats[currEmailID]?.type === 'Group' && chats[currEmailID]?.unreadMessages>0){
+                setChats( prevChats => {
+                    const updatedMessages = [...prevChats[currEmailID].messages];
+                    return {
+                        ...prevChats,
+                        [currEmailID]: {
+                            ...prevChats[currEmailID],
+                            unreadMessages:0,
+                            messages: updatedMessages
+                        }
+                    };
+                })
+            }
+            else{
+                const allMessages = chats[currEmailID].messages || [];
+
             // Filter only received messages that are unread (to avoid marking sent messages as seen)
             const unreadMessages = allMessages.filter(
                 message => message.isSeen === false && message.side !== 'me' // Ensure only received messages
@@ -428,7 +449,9 @@ const ChatPage = () => {
                         };
                     });
                 });
+             }
             }
+            
         }
     }, [currEmailID, chats, emailId, socket]); 
     
@@ -526,7 +549,8 @@ const ChatPage = () => {
                         if (!updatedChats[result.group._id]) {
                             updatedChats[result.group._id] = {type:'Group',messages: [], lastMessage: {}, fullName:result.group.groupName,profilePhoto:result.group.
                             groupProfilePic,groupId:result.group._id,
-                            members:result.group.members };
+                            members:result.group.members,
+                            unreadMessages:0 };
                         }
                         return updatedChats;
                     });
@@ -671,7 +695,7 @@ const ChatPage = () => {
                     // later dp will fetched from db
                     const updatedChats = { ...prevChats };
                     if (!updatedChats[groupId]) {
-                        updatedChats[groupId] = {type:'Group',messages: [], lastMessage: {}, fullName:groupName,groupId:groupId,profilePhoto:`https://api.dicebear.com/9.x/initials/svg?seed=${groupName}`,
+                        updatedChats[groupId] = {type:'Group',messages: [], lastMessage: {}, fullName:groupName,groupId:groupId,profilePhoto:`https://api.dicebear.com/9.x/initials/svg?seed=${groupName}`,unreadMessages:0,
                         members:'' };
                     }
                     return updatedChats;
@@ -684,7 +708,8 @@ const ChatPage = () => {
 
                 setChats((prevChats) => {
                     const updatedChats = { ...prevChats };
-
+                    const numOfUnreadMessage=updatedChats[data.groupName].unreadMessages+1;
+                    updatedChats[data.groupName].unreadMessages=numOfUnreadMessage;
                     updatedChats[data.groupName].messages.push({
                         sender:data.fullName,
                         message: data.message,
@@ -973,25 +998,32 @@ return (
                             {/* Chat header with Close Icon for small screens */}
                             <div className="flex items-center p-4 bg-gray-200 rounded-lg absolute top-0 w-full left-0">
                                 {
-                                    chats[currEmailID]?.status === 'online' ? (
-                                        <StyledBadge
-                                            overlap="circular"
-                                            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                                            variant="dot"
-                                            >
-                                                <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchUserInfo(currEmailID)}} className='cursor-pointer'/>
-                                        </StyledBadge>
-                                    ):(
-                                        <GreyStyledBadge
-                                        overlap="circular"
-                                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                                        variant="dot"
-                                        >
+                                    chats[currEmailID]?.type==='Group' ? (
                                         <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchUserInfo(currEmailID)}} className='cursor-pointer'/>
-                                        </GreyStyledBadge>
+                                    ):(
+                                        
+                                            chats[currEmailID]?.status === 'online' ? (
+                                                <StyledBadge
+                                                    overlap="circular"
+                                                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                                    variant="dot"
+                                                    >
+                                                        <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchUserInfo(currEmailID)}} className='cursor-pointer'/>
+                                                </StyledBadge>
+                                            ):(
+                                                <GreyStyledBadge
+                                                overlap="circular"
+                                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                                variant="dot"
+                                                >
+                                                <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchUserInfo(currEmailID)}} className='cursor-pointer'/>
+                                                </GreyStyledBadge>
+                                                
+                                            )
                                         
                                     )
                                 }
+                                
                                         
                                
                         
