@@ -105,6 +105,46 @@ const ChatPage = () => {
                 myFullName.current = data.response.fullName;
                 myProfilePic.current = data.response.profilePhoto;
 
+                // Store rooms from local storage
+                const roomsFromStorage = JSON.parse(localStorage.getItem(`${emailId}Rooms`));
+                console.log(roomsFromStorage);
+                if (roomsFromStorage.length>1) {
+                    setallRooms(roomsFromStorage);
+                }
+                else{
+                    // fetch from db for groups
+                    // setallRooms( prevRooms => {
+                        // const updatedRooms = {...prevRooms};
+                        const groups = data.response.groups;
+                        console.log(groups);
+                        groups.forEach(group => {
+                            setallRooms(prevRooms => {
+                                const updatedRooms = {...prevRooms};
+                                // Get the next index (numeric key)
+                                const nextIndex = Object.keys(updatedRooms).length;
+                
+                                // Add the new email/groupName at the next index
+                                updatedRooms[nextIndex] = group._id;
+                                
+                                return updatedRooms;
+                            })
+                            setChats((prevChats) => {
+                                // later dp will fetched from db
+                                const updatedChats = { ...prevChats };
+                                if (!updatedChats[group._id]) {
+                                    updatedChats[group._id] = {type:'Group',messages: [], lastMessage: {}, fullName:group.groupName,groupId:group._id,profilePhoto:group.groupProfilePic,unreadMessages:0,
+                                    members:group.members };
+                                }
+                                return updatedChats;
+                            });
+                        });
+                        // prevRooms.push()
+                        
+            
+                    //     return updatedRooms;
+                    // })
+                }
+                
                 await fetchChatStatuses(); // Call to fetch chat statuses
 
             } catch (error) {
@@ -160,13 +200,6 @@ const ChatPage = () => {
         };
     
         fetchUserInfo();
-    
-        // Store rooms from local storage
-        const roomsFromStorage = JSON.parse(localStorage.getItem(`${emailId}Rooms`));
-        console.log(roomsFromStorage);
-        if (roomsFromStorage) {
-            setallRooms(roomsFromStorage);
-        }
     
         // Socket event handlers
         newSocket.on('connect', () => {
