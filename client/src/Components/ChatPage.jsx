@@ -17,6 +17,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
 import { styled } from '@mui/material/styles';
 import Badge from '@mui/material/Badge';
+import EmojiPicker from 'emoji-picker-react'
 
 const ChatPage = () => {
     const { emailId } = useParams();
@@ -50,6 +51,7 @@ const ChatPage = () => {
     const emailInputRef = useRef(null);
     const [showImageFullscreen, setShowImageFullscreen] = useState(false);
     const [newMember, setnewMember] = useState();
+    const [isEmojiPickerVisible, setIsEmojiPickerVisible] = useState(false);
 
     const StyledBadge = styled(Badge)(({ theme }) => ({
         '& .MuiBadge-badge': {
@@ -275,40 +277,53 @@ const ChatPage = () => {
 
     const sendGroupMessage = (e) => {
         e.preventDefault();
-
+        const messageId = Date.now();
+        const timestamp = Date().split("GMT")[0].trim();
         if (message !== '' && currEmailID) {
-            const timestamp = Date().split("GMT")[0].trim();
+            if (!sentMessageIds.current.has(messageId)) {
+                // Add the message ID to the Set
+                sentMessageIds.current.add(messageId);
 
-            socket.emit('sendGroupMessage', {
-                groupName:currEmailID,
-                sender: emailId,
-                message: message,
-                time: timestamp,
-                fullName:myFullName.current,
-                type:'Normal Message'
-            });
-
-            setChats((prevChats) => {
-                const updatedChats = { ...prevChats };
-                if (!updatedChats[currEmailID]) {
-                    updatedChats[currEmailID] = { messages: [], lastMessage: {} };
-                }
-
-                updatedChats[currEmailID].messages.push({
-                    side: 'me',
+                socket.emit('sendGroupMessage', {
+                    messageId: messageId,
+                    groupName:currEmailID,
+                    sender: emailId,
                     message: message,
-                    time: timestamp
+                    time: timestamp,
+                    fullName:myFullName.current,
+                    type:'Normal Message'
                 });
 
-                updatedChats[currEmailID].lastMessage = {
-                    side: 'me',
-                    message: message,
-                    time: timestamp
-                };
+                setChats((prevChats) => {
+                    const updatedChats = { ...prevChats };
+                    if (!updatedChats[currEmailID]) {
+                        updatedChats[currEmailID] = { messages: [], lastMessage: {} };
+                    }
 
-                setMessage('');
-                return updatedChats;
-            });
+                    // check again
+                    const messageExists = updatedChats[currEmailID].messages.some(
+                        msg => msg.messageId === messageId
+                    );
+
+                    if(!messageExists){
+                        updatedChats[currEmailID].messages.push({
+                            side: 'me',
+                            message: message,
+                            time: timestamp,
+                            messageId: messageId,
+                        });
+    
+                        updatedChats[currEmailID].lastMessage = {
+                            side: 'me',
+                            message: message,
+                            time: timestamp
+                        };
+                    }
+                    
+                    setMessage('');
+                    return updatedChats;
+                });
+            }
         }
     };
 
@@ -316,6 +331,10 @@ const ChatPage = () => {
         const tempMessage=e.target.value;
         tempMessage.trim();
         setMessage(tempMessage);
+    };
+
+    const onEmojiClick = (emojiObject) => {
+        setMessage(prevMessage => prevMessage + emojiObject.emoji);
     };
 
     const roomChangeHandler = (e) => {
@@ -1364,6 +1383,15 @@ return (
                             </div>
 
                             <form onSubmit={chats[currEmailID]?.type==='Group'? sendGroupMessage : sendHandler} className="flex p-2">
+
+                                {/* Emoji Picker Trigger Icon */}
+                                <button 
+                                    type="button" 
+                                    onClick={() => setIsEmojiPickerVisible(!isEmojiPickerVisible)} 
+                                    className="ml-1 mr-2">
+                                    😊 {/* simple smiley icon */}
+                                </button>
+
                                 <TextField
                                     id="standard-basic"
                                     placeholder='Your message'
@@ -1373,6 +1401,15 @@ return (
                                     disabled={chats[currEmailID]?.type === 'Group' && !chats[currEmailID]?.in}
                                     onChange={changeHandler}
                                 />
+
+                                
+
+                                {/* Conditionally render the Emoji Picker */}
+                                {isEmojiPickerVisible && (
+                                    <div className="absolute bottom-12 left-0 z-10">
+                                        <EmojiPicker onEmojiClick={onEmojiClick} />
+                                    </div>
+                                )}
                                 <button>
                                     <SendRoundedIcon  sx={{ color: 'primary.main' }} type="submit" className='-rotate-45 '/>
                                 </button>
