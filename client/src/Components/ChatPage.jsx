@@ -49,6 +49,7 @@ const ChatPage = () => {
     const isSmallScreen = useMediaQuery('(max-width: 600px)');
     const emailInputRef = useRef(null);
     const [showImageFullscreen, setShowImageFullscreen] = useState(false);
+    const [newMember, setnewMember] = useState();
 
     const StyledBadge = styled(Badge)(({ theme }) => ({
         '& .MuiBadge-badge': {
@@ -107,11 +108,11 @@ const ChatPage = () => {
 
                 // Store rooms from local storage
                 const roomsFromStorage = JSON.parse(localStorage.getItem(`${emailId}Rooms`));
-                console.log(roomsFromStorage);
-                if (roomsFromStorage.length>1) {
-                    setallRooms(roomsFromStorage);
-                }
-                else{
+
+                // if (roomsFromStorage.length>1) {
+                //     setallRooms(roomsFromStorage);
+                // }
+                // else{
                     // fetch from db for groups
                     const groups = data.response.groups;
                     console.log(groups);
@@ -127,16 +128,15 @@ const ChatPage = () => {
                             return updatedRooms;
                         })
                         setChats((prevChats) => {
-                            // later dp will fetched from db
                             const updatedChats = { ...prevChats };
                             if (!updatedChats[group._id]) {
                                 updatedChats[group._id] = {type:'Group',messages: [], lastMessage: {}, fullName:group.groupName,groupId:group._id,profilePhoto:group.groupProfilePic,unreadMessages:0,
-                                members:group.members };
+                                members:group.members,in:true };
                             }
                             return updatedChats;
                         });
                     });
-                }
+                // }
                 
                 await fetchChatStatuses(); // Call to fetch chat statuses
 
@@ -284,7 +284,8 @@ const ChatPage = () => {
                 sender: emailId,
                 message: message,
                 time: timestamp,
-                fullName:myFullName.current
+                fullName:myFullName.current,
+                type:'Normal Message'
             });
 
             setChats((prevChats) => {
@@ -402,6 +403,9 @@ const ChatPage = () => {
         setopenGroupForm(false);
     };
 
+    const newMemberChangeHandler = (e) => {
+        setnewMember(e.target.value);
+    }
     // auto scroll handle
     // useEffect(() => {
     //     scrollToBottom();
@@ -576,7 +580,8 @@ const ChatPage = () => {
                             updatedChats[result.group._id] = {type:'Group',messages: [], lastMessage: {}, fullName:result.group.groupName,profilePhoto:result.group.
                             groupProfilePic,groupId:result.group._id,
                             members:result.group.members,
-                            unreadMessages:0 };
+                            unreadMessages:0 ,
+                            in:true};
                         }
                         return updatedChats;
                     });
@@ -623,7 +628,7 @@ const ChatPage = () => {
                 groupName: '',
                 members: [emailId]
             });
-            // setIsGroupNameVerified(false);
+
             setLoading(false);
             handleCloseGroupForm();
         }
@@ -701,6 +706,155 @@ const ChatPage = () => {
         setprofileSkeleton(false);
     }
 
+    const addMemberHandler = async () => {
+        // first find new member is in db or not
+        try {
+            const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emailId: newMember })
+            });
+
+            const data = await response.json();
+
+            // check group id and is the user is already in group
+            const response2 = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: currEmailID })
+            });
+
+            const data2 = await response2.json();
+            if(!data2.success){
+                toast.error(`${data2.message}`);
+                setnewMember('');
+                return;
+            }
+            else{
+                // check user is already added or not
+                if(data2.response.members.includes(newMember)){
+                    toast.success("User added already");
+                    setnewMember('');
+                    return;
+                }
+            }
+            if(data.success){
+                try {
+                    const response = await fetch('http://localhost:3000/api/v1/addMember', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ groupId: currEmailID, newMember: newMember })
+                    });
+        
+                    const data = await response.json();
+                    
+                    if(data.success){
+                        const timestamp = Date().split("GMT")[0].trim();
+
+                        socket.emit('sendGroupMessage', {
+                            groupName:currEmailID,
+                            sender: emailId,
+                            message: `${newMember} added by ${emailId}`,
+                            time: timestamp,
+                            fullName:myFullName.current,
+                            type:'AlertMessage'
+                        });
+                        toast.success(`${data.message}`);
+                    }
+                    else{
+                        toast.error(`${data.message}`);
+                    }
+        
+                } catch (error) {
+                    toast.error(`${error}`);
+                }
+            }
+            else{
+                toast.error("User not exists");
+            }
+            setnewMember('');
+        } catch (error) {
+            setnewMember();
+            toast.error(`${error}`);
+        }
+    }
+
+    const removeMemberHandler = async () => {
+        // first find member is in db or not
+        try {
+            const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emailId: newMember })
+            });
+
+            const data = await response.json();
+
+            // check group id and is the user is in group or not
+            const response2 = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: currEmailID })
+            });
+
+            const data2 = await response2.json();
+            if(!data2.success){
+                toast.error(`${data2.message}`);
+                setnewMember('');
+                return;
+            }
+            else{
+                // check user is already added or not
+                if(!data2.response.members.includes(newMember)){
+                    toast.success("User removed already");
+                    setnewMember('');
+                    return;
+                }
+            }
+            if(data.success){
+                try {
+                    const response = await fetch('http://localhost:3000/api/v1/removeMember', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ groupId: currEmailID, member: newMember })
+                    });
+        
+                    const data = await response.json();
+                    
+                    if(data.success){
+                        const timestamp = Date().split("GMT")[0].trim();
+                        socket.emit('sendGroupMessage', {
+                            groupName:currEmailID,
+                            sender: emailId,
+                            message: `${newMember} removed by ${emailId}`,
+                            time: timestamp,
+                            fullName:myFullName.current,
+                            type:'AlertMessage'
+                        });
+                        socket.emit('disableUser',{
+                            groupName:currEmailID,
+                            user:newMember
+                        })
+                        toast.success(`${data.message}`);
+                    }
+                    else{
+                        toast.error(`${data.message}`);
+                    }
+        
+                } catch (error) {
+                    toast.error(`${error}`);
+                }
+            }
+            else{
+                toast.error("User is not exist");
+            }
+            setnewMember('');
+        } catch (error) {
+            setnewMember();
+            toast.error(`${error}`);
+        } 
+    }
+
     useEffect(() => {
         if (socket) {
             socket.on('receiveMessage', (data) => {
@@ -708,7 +862,7 @@ const ChatPage = () => {
                 setChats((prevChats) => {
                     const updatedChats = { ...prevChats };
                     if (!updatedChats[data.sender]) {
-                        updatedChats[data.sender] = { messages: [], lastMessage: {},profilePhoto:'',unreadMessages:0};
+                        updatedChats[data.sender] = { messages: [], lastMessage: {},profilePhoto:'',unreadMessages:0,in:true};
                     }
 
                     updatedChats[data.sender].fullName = data.fullName;
@@ -756,7 +910,7 @@ const ChatPage = () => {
                     const updatedChats = { ...prevChats };
                     if (!updatedChats[groupId]) {
                         updatedChats[groupId] = {type:'Group',messages: [], lastMessage: {}, fullName:groupName,groupId:groupId,profilePhoto:`https://api.dicebear.com/9.x/initials/svg?seed=${groupName}`,unreadMessages:0,
-                        members:'' };
+                        members:'',in:true };
                     }
                     return updatedChats;
                 });
@@ -772,8 +926,10 @@ const ChatPage = () => {
                     updatedChats[data.groupName].unreadMessages=numOfUnreadMessage;
                     updatedChats[data.groupName].messages.push({
                         sender:data.fullName,
+                        senderEmail:data.sender,
                         message: data.message,
-                        time: data.time
+                        time: data.time,
+                        type:data.type
                     });
 
                     updatedChats[data.groupName].lastMessage = {
@@ -796,24 +952,76 @@ const ChatPage = () => {
                 });
             })
 
+            socket.on('disableGroup', (data) => {
+                setallRooms((prevRooms)=> {
+                    const updatedRooms = {...prevRooms};
+                    const indexToRemove = Object.keys(updatedRooms).find(
+                        (key) => updatedRooms[key] === data.groupName
+                    );
+                
+                    // Remove the groupId if it exists in updatedRooms
+                    if (indexToRemove !== undefined) {
+                        delete updatedRooms[indexToRemove];
+                    }
+                
+                    return updatedRooms;
+                })
+
+                setChats((prevChats) => {
+                    const updatedChats = {...prevChats};
+                    if(updatedChats[data.groupName]){
+                        updatedChats[data.groupName].in=false;
+                    }
+                    return updatedChats;
+                })
+            })
+
             return () => {
                 socket.off('receiveMessage');
                 socket.off('addGroup');
                 socket.off('receiveGroupMessage');
                 socket.off('currStatus');
+                socket.off('disableGroup');
             };
         }
     }, [socket, emailId]);
 
-    useEffect(() => {
-        if(emailId && currEmailID){
-            console.log("emit for checking status")
-            socket.emit('status',{
-                sender: currEmailID,
-                receiver: emailId
-            });
+    useEffect( () => {      
+        if(currEmailID){
+            if(chats[currEmailID].type===undefined || chats[currEmailID]?.type!=='Group'){
+                console.log("emit for checking status")
+                // socket.emit('status',{
+                //     sender: currEmailID,
+                //     receiver: emailId
+                // });
+                const userStatusUpadte = async (currEmailID) => {
+                    try {
+                        const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ emailId: currEmailID }),
+                        });
+                        const data = await response.json();
+                        
+                        // update it
+                        setChats((prevChats) => {
+                            const updatedChats = { ...prevChats };
+                            if(updatedChats[currEmailID]){
+                                updatedChats[currEmailID].status=data.response.currStatus;
+                            }
+                            return updatedChats;
+                        })
+                    } catch (error) {
+                        console.log(error);
+                    }
+                }
+
+                userStatusUpadte(currEmailID);
+                
+            }
+            
         }
-    }, [currEmailID,emailId])
+    }, [currEmailID])
     
     useEffect(() => {
         if (socket) {
@@ -850,9 +1058,9 @@ const ChatPage = () => {
         localStorage.setItem(`${emailId}Rooms`, JSON.stringify(allRooms));
 
         // add user to all room in allRooms
-        Object.entries(allRooms).map(([key,emailId])=>{
-
-            socket.emit('joinRoom', emailId);
+        Object.entries(allRooms).map(([key,email])=>{
+            const user = (emailId===email) ? 'me':'other';
+            socket.emit('joinRoom', {emailId:email,user:user});
         })
       }   
     }, [socket,allRooms])
@@ -993,7 +1201,7 @@ return (
 
                         <div className="font-bold font-arima text-lg flex gap-2 items-center">
                             <Avatar src={chats[email]?.profilePhoto} />
-                            <p>{chats[email]?.fullName}</p>
+                            <p>{chats[email]?.fullName }</p>
                         </div>
                       
                         {chats[email].lastMessage && (
@@ -1015,7 +1223,7 @@ return (
             {!showChatList || !isSmallScreen ? (
                 <div className="w-full sm:w-3/4 p-2 bg-opacity-5 bg-cyan-200 shadow rounded-lg relative">
                          {profileDetails && (
-                            <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black bg-opacity-50">
+                            <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black bg-opacity-50 text-center">
                                 <div className="p-4 bg-white rounded-lg shadow-lg text-center">
                                     <Avatar
                                         src={userDetails?.profilePic}
@@ -1035,12 +1243,21 @@ return (
                                                     <li key={index}>{member}</li>
                                                 ))}
                                             </ul>
+                                            <div className='flex justify-center items-center '>
+                                                <TextField id="standard-basic" label="User Email ID" variant="standard" onChange={newMemberChangeHandler} value={newMember} />
+                                                <div className='gap-1 flex'>
+                                                    <Button variant="contained" onClick={addMemberHandler}>Add</Button>
+                                                    <Button variant='outlined' onClick={removeMemberHandler}>Remove</Button>
+                                                </div>
+                                                
+                                            </div>
+                                            
                                         </>
                                     }
                                     
                                     <button
                                         onClick={() => setprofileDetails(false)}
-                                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg"
+                                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg block self-center w-full"
                                     >
                                         Close
                                     </button>
@@ -1096,11 +1313,6 @@ return (
                                 }
                                 
                                 <Typography variant="font-PTSans"  className="pl-5 text-xl antialiased font-bold">{chats[currEmailID]?.fullName}</Typography>
-                                {
-                                    chats[currEmailID]?.members &&
-
-                                    <Typography variant="font-PTSans"  className="pl-5 text-sm antialiased font-bold">{chats[currEmailID]?.members?.length} members</Typography>
-                                }
                                 
                                 {isSmallScreen && (
                                     <IconButton onClick={toggleChatList} className="ml-auto">
@@ -1115,14 +1327,14 @@ return (
                                         const isUserMessage = msg.side === 'me';
 
                                         return (
-                                            <Box key={index} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'} mb-2`}>
+                                            <Box key={index} className={`flex ${msg.type === 'AlertMessage' ? 'justify-center' : isUserMessage ? 'justify-end' : 'justify-start'} mb-2`}>
                                                 <Box
                                                     className={`max-w-[70%] p-2 rounded-lg shadow-md ${isUserMessage ? 'bg-indigo-500 text-white' : 'bg-indigo-50 text-black'}`}
                                                 >   
                                                     {
                                                         msg?.sender &&
 
-                                                        <Typography variant="body1 font-AfacadFlux" className="break-words block">{msg.sender}</Typography>
+                                                        <Typography variant="body1 font-AfacadFlux" className="break-words block">{msg.sender} ({msg.senderEmail})</Typography>
                                                     }
                                                     
                                                     <Typography variant="body1 font-AfacadFlux" className="break-words">{msg.message}</Typography>
@@ -1158,6 +1370,7 @@ return (
                                     variant="standard"
                                     className="flex-grow "
                                     value={message}
+                                    disabled={chats[currEmailID]?.type === 'Group' && !chats[currEmailID]?.in}
                                     onChange={changeHandler}
                                 />
                                 <button>

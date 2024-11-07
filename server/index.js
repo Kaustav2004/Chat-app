@@ -45,29 +45,49 @@ io.on('connection', (socket) => {
   console.log('a user connected:', socket.id);
 
   // Handle user joining a personal room based on emailId
-  socket.on('joinRoom', async (emailId) => {
+  socket.on('joinRoom', async ({emailId,user}) => {
     socket.join(emailId);
     socket.emailId = emailId;
     console.log(`User with socket ID ${socket.id} joined room: ${emailId}`);
 
-    // Emit the 'online' event to all clients or specific ones as needed
-    io.emit("currStatus", { userId: emailId, status: "online" }); 
+    if(user==='me'){
+      // Emit the 'online' event to all clients or specific ones as needed
+      io.emit("currStatus", { userId: emailId, status: "online" }); 
 
-    // upadte on db
-    try {
-      const response = await fetch('http://localhost:3000/api/v1/updateStatus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailId: emailId, status:"online" })
-      });
+      // upadte on db
+      try {
+        const response = await fetch('http://localhost:3000/api/v1/updateStatus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emailId: emailId, status:"online" })
+        });
 
-      const data = await response.json();
-      if(!data.success){
-        console.log(data.message);
+        const data = await response.json();
+        if(!data.success){
+          console.log(data.message);
+        }
+      } catch (error) {
+        console.log(error);
       }
-    } catch (error) {
-      console.log(error);
+
+      // socket id in db
+      try {
+        const response = await fetch('http://localhost:3000/api/v1/updateSocket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emailId: emailId, socketId: socket.id })
+        });
+
+        const data = await response.json();
+        if(!data.success){
+          console.log(data.message);
+        }
+        
+      } catch (error) {
+        console.log(error);
+      }
     }
+
 
   });
 
@@ -77,7 +97,7 @@ io.on('connection', (socket) => {
   })
 
   // Handling chat messages within the group
-  socket.on('sendGroupMessage', ({ groupName, message, sender, time, fullName }) => {
+  socket.on('sendGroupMessage', ({ groupName, message, sender, time, fullName, type }) => {
 
     // Broadcast the message to all users in the group room
     socket.broadcast.to(groupName).emit('receiveGroupMessage', {
@@ -85,11 +105,17 @@ io.on('connection', (socket) => {
       message,
       groupName,
       time,
-      fullName
+      fullName,
+      type
     });
 
   });
 
+  // remove user from group
+  socket.on('disableUser',({groupName, user}) => {
+    io.to(user).emit('disableGroup',{groupName});
+  })
+  
   // Send message to another user by their room (email)
   socket.on('sendMessage', ({ messageId, sender, receiver, message, time, fullName,isSeen }) => {
     console.log(`${sender} sends message to ${receiver}: ${message}`);
@@ -107,21 +133,21 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
 
-    console.log(socket.emailId);
-    // socket emit that ensure that user is offline
-    io.emit("currStatus", { userId: socket.emailId, status: "offline" }); 
-
     // upadte on db
     try {
       const response = await fetch('http://localhost:3000/api/v1/updateStatus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailId: socket.emailId, status:"offline" })
+        body: JSON.stringify({ socketId: socket.id, status:"offline" })
       });
 
       const data = await response.json();
       if(!data.success){
         console.log(data.message);
+      }
+      else{
+        // socket emit that ensure that user is offline
+        io.emit("currStatus", { userId: data.response.emailId, status: "offline" }); 
       }
     } catch (error) {
       console.log(error);

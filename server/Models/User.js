@@ -16,6 +16,9 @@ const userSchema = new mongoose.Schema({
         type:String,
         required:true
     },
+    socketId:{
+        type:String
+    },
     password:{
         type:String,
         required:true

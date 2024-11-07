@@ -7,6 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
+import mongoose from "mongoose";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -230,14 +231,15 @@ export const deleteAccount = async (req,res) => {
 
 export const updateStatus = async (req,res)=>{
     try{
-        const {emailId,status} = req.body;
-        await User.findOneAndUpdate({emailId:emailId},{
+        const {socketId,status} = req.body;
+        const response = await User.findOneAndUpdate({socketId:socketId},{
             currStatus:status
-        })
+        },{new:true})
 
         return res.status(200).json({
             success:true,
-            message:"updated Successfully"
+            message:"status updated Successfully",
+            response: response
         })
 
     }
@@ -250,6 +252,32 @@ export const updateStatus = async (req,res)=>{
     }
 }
 
+export const updateSocket = async (req,res) => {
+    const {emailId,socketId} = req.body;
+    try {
+        const response = await User.findOneAndUpdate({emailId:emailId},{
+            socketId:socketId
+        },{new:true});
+        if(response){
+            return res.status(200).json({
+                success:true,
+                message:"SocketId Update Successfully"
+            })
+        }
+        else{
+            return res.json({
+                success:false,
+                message:"error in updating socketId"
+            })
+        }
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+}
 export const fetchStatus = async (req,res)=>{
     try{
         const {emailId} = req.body;
@@ -289,6 +317,94 @@ export const fetchGroupInfo = async (req,res) => {
         })
     }
 }
+
+export const addMember = async (req,res) => {
+    try {
+        const {groupId,newMember} = req.body;
+
+        // add in group
+        const upadtedGroup = await Group.findByIdAndUpdate( groupId,
+            { $push: { members: newMember } },
+            { new: true } 
+        );
+
+        // add group in user
+        const updatedUser = await User.findOneAndUpdate({emailId: newMember},
+            { $push: { groups: upadtedGroup._id}},
+            { new: true }
+        )
+
+        return res.status(200).json({
+            success: true,
+            message: "User added successfully"
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+}
+
+export const removeMember = async (req, res) => {
+    const { groupId, member } = req.body;
+    console.log(groupId,member);
+
+    try {
+        // Check if the group exists and if the member is in the group
+        const group = await Group.findById(groupId);
+        if (!group) {
+            return res.status(404).json({ success: false, message: "Group not found" });
+        }
+        if (!group.members.includes(member)) {
+            return res.status(400).json({ success: false, message: "Member not in group" });
+        }
+
+        // Remove member from the group
+        const updatedGroup = await Group.findByIdAndUpdate(
+            groupId,
+            { $pull: { members: member } },
+            { new: true }
+        );
+
+
+        // Convert groupId to ObjectId for user update
+        const objectGroupId = new mongoose.Types.ObjectId(groupId);
+
+        // Remove group from user's groups array
+        const updatedUser = await User.findOneAndUpdate(
+            { emailId: member },
+            { $pull: { groups: objectGroupId } },
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found or group not in user's groups",
+            });
+        }
+
+        console.log("Updated User:", updatedUser);
+
+        // Send a success response
+        return res.status(200).json({
+            success: true,
+            message: "User removed successfully",
+        });
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+
 export const backUpChat = async (req,res)=>{
     try{
         const {emailId,chats} = req.body;
