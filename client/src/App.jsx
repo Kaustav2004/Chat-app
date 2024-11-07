@@ -1,51 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import AuthPage from './Components/AuthPage';
-import { Route,Routes,useNavigate } from 'react-router-dom';
+import { Route,Routes,useNavigate,Navigate } from 'react-router-dom';
 import ChatPage from './Components/ChatPage';
 import UpdateProfile from './Components/updateProfile';
+import { getEmailFromToken } from './Util/JwtDecode';
+import toast from 'react-hot-toast';
 
 const App = () => {
-  const [userId, setUserId] = useState("");
-  const [socket, setSocket] = useState(null);
-
-  // useEffect(() => {
-    
-  //   const newSocket = io("http://localhost:3000");
-
-  //   // Log connection status and set userId
-  //   newSocket.on('connect', () => {
-  //     setUserId(newSocket.id);
-  //     console.log('Connected to the server with id:', newSocket.id);
-  //   });
-
-  //   newSocket.on('disconnect', () => {
-  //     console.log('Disconnected from the server');
-  //   });
-
-  //   newSocket.on('connect_error', (err) => {
-  //     console.error('Connection Error:', err);
-  //   });
-
-  //   // Set socket in state
-  //   setSocket(newSocket);
-
-  //   return () => {
-  //     newSocket.disconnect();
-  //   };
-  // }, []);
-
+  const infoEmail = getEmailFromToken();
+  const init = infoEmail ? infoEmail :'';
+  const [emailId, setemailId] = useState(init);
+  const navigate = useNavigate();
+  const logOutHandler = () => {
+    localStorage.removeItem('token');
+    navigate('/auth');
+    setemailId('');
+    toast.success('LogOut Successfully')
+  }
+  useEffect(() => {
+    const response = getEmailFromToken();
+    setemailId(response);
+  }, [])
+  
   return (
-    <div>
       
-      <Routes>
-        <Route path='/auth' element={<AuthPage/>}/>
-        <Route path="/chat/:emailId" element={<ChatPage/> }/>
-        <Route path="/:emailId/updateDetails" element={<UpdateProfile/>} />
-        <Route path="*" element={<div>NO PAGE</div>} />
-      </Routes>
+    <Routes>
 
+      <Route 
+        path="/auth" 
+        element={
+          emailId ? <Navigate to={`/chat/${emailId}`} replace /> : <AuthPage setemailId={setemailId} />
+        } 
+      />
 
-    </div>
+      <Route 
+        path="/chat/:emailId" 
+        element={
+          emailId ? <ChatPage emailIdCurr={emailId} logOutHandler={logOutHandler}/> : <Navigate to={'/auth'} replace /> 
+        } 
+      />
+
+      <Route 
+        path="/:emailId/updateDetails" 
+        element={
+          emailId ? <UpdateProfile emailIdCurr={emailId}/> : <Navigate to={'/auth'} replace /> 
+        } 
+      />
+
+      <Route path="*" element={  emailId ? <Navigate to={`/chat/${emailId}`} replace /> : <Navigate to={'/auth'} replace /> } />
+
+    </Routes>
   );
 };
 

@@ -11,15 +11,16 @@ import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
+import DialogContentText from '@mui/material/DialogContentText'
 import DialogTitle from '@mui/material/DialogTitle';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'; 
 import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
 import { styled } from '@mui/material/styles';
 import Badge from '@mui/material/Badge';
 import EmojiPicker from 'emoji-picker-react'
+import LogoutIcon from '@mui/icons-material/Logout';
 
-const ChatPage = () => {
+const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const { emailId } = useParams();
     const navigate = useNavigate();
     const messagesEndRef = useRef(null);
@@ -46,7 +47,6 @@ const ChatPage = () => {
     const [profileDetails, setprofileDetails] = useState(false);
     const [profileSkeleton, setprofileSkeleton] = useState(false);
     const [userDetails, setuserDetails] = useState('');
-    // const [isGroupNameVerified, setIsGroupNameVerified] = useState(false);
     const isSmallScreen = useMediaQuery('(max-width: 600px)');
     const emailInputRef = useRef(null);
     const [showImageFullscreen, setShowImageFullscreen] = useState(false);
@@ -91,6 +91,10 @@ const ChatPage = () => {
     }));
       
     useEffect(() => {
+        if(emailId!==emailIdCurr){
+            navigate('/auth');
+            return;
+        }
         setmainPageLoad(true);
         const newSocket = io('http://localhost:3000');
     
@@ -1090,7 +1094,7 @@ const ChatPage = () => {
             <Box sx={{ display: 'flex' , justifyContent:'center', alignItems:'center'}} className='h-screen'>
                 <CircularProgress />
             </Box>
-      )}
+    )}
 
 return (
     <Container maxWidth="lg" className="h-screen flex flex-col p-4">
@@ -1100,7 +1104,11 @@ return (
             {/* Left Side Chat List */}
             {(showChatList || !isSmallScreen) && (
                 <div className="w-full min-w-[270px] sm:w-1/4 p-2 bg-white shadow rounded-lg sm:mr-4 min-h-fit">
-                    <Avatar src={myProfilePic.current} onClick={()=>{navigate(`/${emailId}/updateDetails`)}} className='cursor-pointer'/>
+                    <div className='flex justify-between items-center ml-2 mr-2'>
+                        <Avatar src={myProfilePic.current} onClick={()=>{navigate(`/${emailId}/updateDetails`)}} className='cursor-pointer'/>
+                        <LogoutIcon className='cursor-pointer' onClick={logOutHandler}/>
+                    </div>
+                    
                     <form className="flex mb-4 " onSubmit={startChatHandler}>
                         <TextField
                             id="standard-basic"
@@ -1389,7 +1397,7 @@ return (
                                     type="button" 
                                     onClick={() => setIsEmojiPickerVisible(!isEmojiPickerVisible)} 
                                     className="ml-1 mr-2">
-                                    😊 {/* simple smiley icon */}
+                                    😊 
                                 </button>
 
                                 <TextField

@@ -1,14 +1,15 @@
 import { Avatar, CircularProgress, TextField, Button, IconButton, FormHelperText, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
-import React, { useState, useEffect, } from 'react'
+import React, { useState, useEffect } from 'react'
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
 import CloseIcon from '@mui/icons-material/Close';
 import { useSnackbar } from 'notistack'; 
 
-const UpdateProfile = () => {
+const UpdateProfile = ({emailIdCurr}) => {
     const {emailId} = useParams();
     const navigate = useNavigate();
+    
     const [loading, setloading] = useState(false);
     const [userData,setuserData] = useState('');
     const { enqueueSnackbar } = useSnackbar();
@@ -125,7 +126,11 @@ const UpdateProfile = () => {
     }
     
     useEffect(() => {
-      userDetails();
+        if(emailId!==emailIdCurr){
+            navigate('/auth');
+            return;
+        }
+        userDetails();
     }, [])
     
   return (

@@ -3,7 +3,7 @@ import { Button, TextField, Typography, CircularProgress, Box } from '@mui/mater
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
-const AuthPage = () => {
+const AuthPage = ({setemailId}) => {
   const [isLogin, setIsLogin] = useState(true); // Toggle between login and signup
   const [isOtpScreen, setIsOtpScreen] = useState(false); // Toggle between signup and OTP screens
   const [loginData, setLoginData] = useState({ email: "", password: "" });
@@ -88,12 +88,13 @@ const AuthPage = () => {
       // Check for success in the response data
       if (data.success) {
         toast.success(`${data.message}`);
-        console.log(data);
-  
+
+        localStorage.setItem('token', data.token);
+        setemailId(emailId);
         // Delay navigation to allow toast to be displayed
         setTimeout(() => {
           navigate(`/chat/${emailId}`);
-        }, 2000); // Adjust the delay time as needed (2000ms = 2 seconds)
+        }, 2000); // Adjust the delay time as needed (2000ms)
       } else {
         toast.error(`${data.message}`);
       }
