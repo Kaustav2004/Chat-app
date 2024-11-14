@@ -150,7 +150,7 @@ export const login = async (req, res) => {
 
         // Create JWT token
         const token = jwt.sign({ id: user._id, email: user.emailId }, process.env.JWT_SECRET, {
-            expiresIn: '1h'
+            expiresIn: '12h'
         });
 
         // Send token as cookie

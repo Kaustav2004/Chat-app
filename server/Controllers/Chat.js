@@ -8,6 +8,7 @@ import fs from 'fs';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from "mongoose";
+import UndeliverdMessage from '../Models/UndeliveredMessage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -279,6 +280,7 @@ export const updateSocket = async (req,res) => {
         })
     }
 }
+
 export const fetchStatus = async (req,res)=>{
     try{
         const {emailId} = req.body;
@@ -351,7 +353,6 @@ export const addMember = async (req,res) => {
 
 export const removeMember = async (req, res) => {
     const { groupId, member } = req.body;
-    console.log(groupId,member);
 
     try {
         // Check if the group exists and if the member is in the group
@@ -405,6 +406,80 @@ export const removeMember = async (req, res) => {
     }
 };
 
+export const undeliveredMessageStore = async (req,res) => {
+    const {senderId, fullName, receiverIds, message, messageId, time} = req.body;
+
+    if (!senderId || !fullName || !receiverIds || receiverIds.length === 0 || !message || !messageId || !time) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields",
+        });
+    }
+
+    try {
+        const undeliveredMessage = await UndeliverdMessage.create({
+            senderId,
+            fullName,
+            receiverIds,
+            message,
+            messageId,
+            time
+        })
+        
+        return res.status(200).json({
+            success:true,
+            message:"Stored in DB",
+            response:undeliveredMessage
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success:false,
+            message:"Problem in store in DB"
+        })
+    }
+}
+
+export const getUndeliveredMessages = async (req,res) => {
+
+    const { receiverId } = req.body;
+
+    if (!receiverId) {
+      return res.status(400).json({ 
+        message: "receiverId is required" 
+      });
+    }
+
+    try {
+        // Fetch messages where the receiverIds array contains the specified receiverId
+        const messages = await UndeliverdMessage.find({
+          receiverIds: receiverId,
+        });
+    
+        // Send messages immediately to the client
+        res.status(200).json({
+          success: true,
+          response: messages,
+        });
+    
+        // Remove receiverId from each message's receiverIds array and update/delete as needed
+        for (const message of messages) {
+          // Remove the receiverId from the receiverIds array
+          message.receiverIds = message.receiverIds.filter((id) => id !== receiverId);
+    
+          // If receiverIds is now empty, delete the message; otherwise, save the updated message
+          if (message.receiverIds.length === 0) {
+            await UndeliverdMessage.deleteOne({ _id: message._id });
+          } else {
+            await message.save();
+          }
+        }
+    } catch (error) {
+        console.error("Error processing undelivered messages:", error);
+    }
+
+}
 
 export const backUpChat = async (req,res)=>{
     try{

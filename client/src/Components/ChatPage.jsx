@@ -106,7 +106,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                     body: JSON.stringify({ emailId: emailId }),
                 });
                 const data = await response.json();
-                console.log(data);
     
                 // Update profile info
                 myFullName.current = data.response.fullName;
@@ -197,9 +196,61 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             }
             
         };
-    
+
+        const fetchUndeliveredMessages = async () => {
+            try {
+                const response = await fetch('http://localhost:3000/api/v1/getUndeliveredMessage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ receiverId: emailId }),
+                });
+                const data = await response.json();
+
+                if(data.success){
+                    console.log(data.response);
+                    if(data.response && data.response.length>0){
+                        data.response.forEach(msg => {
+                            setChats((prevChats) => {
+                                const updatedChats = { ...prevChats };
+                                if (!updatedChats[msg.senderId]) {
+                                    updatedChats[msg.senderId] = { messages: [], lastMessage: {},profilePhoto:'',unreadMessages:0,in:true};
+                                }
+
+                                // Check if the message already exists by its unique messageId
+                                const messageExists = updatedChats[msg.senderId].messages.some(
+                                    (m) => m.messageId === msg.messageId
+                                );
+
+                                if(!messageExists){
+                                    updatedChats[msg.senderId].fullName = msg.fullName;
+                                    // console.log(updatedChats[data.seder]);
+                                    const numOfUnreadMessage=updatedChats[msg.senderId].unreadMessages+1;
+                                    updatedChats[msg.senderId].unreadMessages=numOfUnreadMessage;
+                                    updatedChats[msg.senderId].messages.push({
+                                        messageId: msg.messageId,
+                                        message: msg.message,
+                                        time: msg.time,
+                                        isSeen: false
+                                    });
+                
+                                    updatedChats[msg.senderId].lastMessage = {
+                                        message: msg.message,
+                                        time: msg.time
+                                    };
+                                }
+                               
+                                return updatedChats;
+                            });
+                        });
+                    }   
+                }
+            } catch (error) {
+                console.log(error);
+            }
+        }
+
         fetchUserInfo();
-    
+        fetchUndeliveredMessages();
         // Socket event handlers
         newSocket.on('connect', () => {
             console.log('Connected to the server with id:', newSocket.id);
@@ -225,7 +276,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    const sendHandler = (e) => {
+    const sendHandler = async (e) => {
         e.preventDefault();
         const messageId = Date.now();
         const timestamp = Date().split("GMT")[0].trim();
@@ -234,15 +285,48 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             // Add the message ID to the Set
             sentMessageIds.current.add(messageId);
 
-            socket.emit('sendMessage', {
-                messageId: messageId,
-                sender: emailId,
-                receiver: currEmailID,
-                message: message,
-                time: timestamp,
-                fullName: myFullName.current,
-                isSeen: false
-            });
+            // check user is online or offline
+
+            // if user is in online
+            if(chats[currEmailID].status==='online'){
+                socket.emit('sendMessage', {
+                    messageId: messageId,
+                    sender: emailId,
+                    receiver: currEmailID,
+                    message: message,
+                    time: timestamp,
+                    fullName: myFullName.current,
+                    isSeen: false
+                });
+            }
+            
+
+            // if user is offline
+            else{
+                // store in DB
+                try {
+                    const response = await fetch('http://localhost:3000/api/v1/storeUndeliveredMessage', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            senderId: emailId,
+                            receiverIds: [currEmailID],
+                            message: message,
+                            messageId:messageId,
+                            time: timestamp,
+                            fullName: myFullName.current,
+                        }),
+                    });
+                    const data = await response.json();
+
+                    if(!data.success){
+                        toast.error(`${data.message}`);
+                    }
+
+                } catch (error) {
+                   toast.error(`${data.message}`);
+                }
+            }
 
             // Update chats state
             setChats((prevChats) => {

@@ -152,7 +152,7 @@ io.on('connection', (socket) => {
           const response = await fetch('http://localhost:3000/api/v1/updateSocket', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({emailId:emailId, socketId: ''})
+            body: JSON.stringify({emailId:emailId, socketId:'None'})
           });
     
           const data = await response.json();

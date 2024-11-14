@@ -5,7 +5,11 @@ const undeliveredMessageSchema = new mongoose.Schema({
         type:String,
         required:true
     },
-    receiverId:[{
+    fullName:{
+        type:String,
+        required:true
+    },
+    receiverIds:[{
         type:String,
         required:true
     }],
@@ -13,10 +17,13 @@ const undeliveredMessageSchema = new mongoose.Schema({
         type:String,
         required:true
     },
+    messageId:{
+        type:Number,
+        required:true
+    },
     time:{
-        type:Date,
-        required:true,
-        default:Date.now
+        type:String,
+        required:true
     }
 })
 
