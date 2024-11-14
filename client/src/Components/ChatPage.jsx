@@ -1106,7 +1106,10 @@ return (
                 <div className="w-full min-w-[270px] sm:w-1/4 p-2 bg-white shadow rounded-lg sm:mr-4 min-h-fit">
                     <div className='flex justify-between items-center ml-2 mr-2'>
                         <Avatar src={myProfilePic.current} onClick={()=>{navigate(`/${emailId}/updateDetails`)}} className='cursor-pointer'/>
-                        <LogoutIcon className='cursor-pointer' onClick={logOutHandler}/>
+                        <Tooltip title="Log Out" placement="right">
+                            <LogoutIcon className='cursor-pointer' onClick={logOutHandler}/>
+                        </Tooltip>
+                        
                     </div>
                     
                     <form className="flex mb-4 " onSubmit={startChatHandler}>

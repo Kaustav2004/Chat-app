@@ -232,6 +232,7 @@ export const deleteAccount = async (req,res) => {
 export const updateStatus = async (req,res)=>{
     try{
         const {socketId,status} = req.body;
+
         const response = await User.findOneAndUpdate({socketId:socketId},{
             currStatus:status
         },{new:true})

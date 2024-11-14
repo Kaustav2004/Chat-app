@@ -43,7 +43,7 @@ app.use("/api/v1", chatRoutes);
 // Handle socket connection
 io.on('connection', (socket) => {
   console.log('a user connected:', socket.id);
-
+  
   // Handle user joining a personal room based on emailId
   socket.on('joinRoom', async ({emailId,user}) => {
     socket.join(emailId);
@@ -59,7 +59,7 @@ io.on('connection', (socket) => {
         const response = await fetch('http://localhost:3000/api/v1/updateStatus', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ emailId: emailId, status:"online" })
+          body: JSON.stringify({ socketId: socket.id, status:"online" })
         });
 
         const data = await response.json();
@@ -142,12 +142,32 @@ io.on('connection', (socket) => {
       });
 
       const data = await response.json();
+
       if(!data.success){
         console.log(data.message);
       }
       else{
-        // socket emit that ensure that user is offline
-        io.emit("currStatus", { userId: data.response.emailId, status: "offline" }); 
+        const emailId = data.response.emailId;
+        try {
+          const response = await fetch('http://localhost:3000/api/v1/updateSocket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({emailId:emailId, socketId: ''})
+          });
+    
+          const data = await response.json();
+          if(!data.success){
+            console.log(data.message);
+          }
+          else{
+            // socket emit that ensure that user is offline
+            io.emit("currStatus", { userId: emailId, status: "offline" }); 
+          }
+          
+        } catch (error) {
+          console.log(error);
+        }
+        
       }
     } catch (error) {
       console.log(error);
