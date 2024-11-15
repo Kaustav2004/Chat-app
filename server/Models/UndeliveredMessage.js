@@ -13,6 +13,13 @@ const undeliveredMessageSchema = new mongoose.Schema({
         type:String,
         required:true
     }],
+    sentIds:[{
+        type:String
+    }],
+    messageStoreId:{
+        type:String,
+        required:true
+    },
     message:{
         type:String,
         required:true
@@ -23,6 +30,10 @@ const undeliveredMessageSchema = new mongoose.Schema({
     },
     time:{
         type:String,
+        required:true
+    },
+    isSeen:{
+        type:Boolean,
         required:true
     }
 })

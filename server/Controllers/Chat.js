@@ -407,9 +407,9 @@ export const removeMember = async (req, res) => {
 };
 
 export const undeliveredMessageStore = async (req,res) => {
-    const {senderId, fullName, receiverIds, message, messageId, time} = req.body;
+    const {senderId, fullName, receiverIds, message, messageId, time, isSeen, messageStoreId} = req.body;
 
-    if (!senderId || !fullName || !receiverIds || receiverIds.length === 0 || !message || !messageId || !time) {
+    if (!senderId || !fullName || !receiverIds || receiverIds.length === 0 || !message || !messageId || !time || !messageStoreId) {
         return res.status(400).json({
           success: false,
           message: "Missing required fields",
@@ -423,7 +423,9 @@ export const undeliveredMessageStore = async (req,res) => {
             receiverIds,
             message,
             messageId,
-            time
+            time,
+            isSeen,
+            messageStoreId
         })
         
         return res.status(200).json({
@@ -462,25 +464,65 @@ export const getUndeliveredMessages = async (req,res) => {
           success: true,
           response: messages,
         });
-    
-        // Remove receiverId from each message's receiverIds array and update/delete as needed
+
+        // mark all messages as isSeen true
         for (const message of messages) {
-          // Remove the receiverId from the receiverIds array
-          message.receiverIds = message.receiverIds.filter((id) => id !== receiverId);
+            // Remove the receiverId from the receiverIds array
+            message.receiverIds = message.receiverIds.filter((id) => id !== receiverId);
     
-          // If receiverIds is now empty, delete the message; otherwise, save the updated message
-          if (message.receiverIds.length === 0) {
-            await UndeliverdMessage.deleteOne({ _id: message._id });
-          } else {
+            // If receiverIds is now empty, delete the message; otherwise, save the updated message
+            if (message.receiverIds.length === 0) {
+            await UndeliverdMessage.updateOne({ _id: message._id },{
+                receiverIds:message.receiverIds,
+                isSeen:true
+            });
+            } else {
             await message.save();
-          }
+            }
         }
     } catch (error) {
-        console.error("Error processing undelivered messages:", error);
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
     }
 
 }
 
+export const getMyOfflineMessages = async (req,res) => {
+    const {senderId} = req.body;
+
+    if(!senderId) {
+        return res.status(400).json({
+            success:false,
+            message:"Required Field missing"
+        })
+    }
+
+    try {
+        const messages = await UndeliverdMessage.find({senderId:senderId});
+
+        res.status(200).json({
+            success:true,
+            response:messages
+        })
+
+        // if isSeen true delete from DB
+        for (const message of messages) {    
+          // If receiverIds is now empty, delete the message; otherwise, save the updated message
+          if (message.receiverIds.length === 0) {
+            await UndeliverdMessage.deleteOne({ _id: message._id });
+          }
+        }
+
+    } catch (error) {
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+   
+}
 export const backUpChat = async (req,res)=>{
     try{
         const {emailId,chats} = req.body;

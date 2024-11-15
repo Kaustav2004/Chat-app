@@ -249,8 +249,49 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             }
         }
 
+        const fetchMyOfflineMessagesStatus = async () => {
+            try {
+                const response = await fetch('http://localhost:3000/api/v1/getMyOfflineMessages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderId: emailId }),
+                });
+                const data = await response.json();
+
+                if(data.success){
+                    if(data.response){
+                       data.response.forEach(msg => {
+                        if(msg.isSeen){
+                            setChats((prevChats) => {
+                                const messages = prevChats[msg.messageStoreId]?.messages || [];
+                                const messageIndex = messages.findIndex((message) => message.messageId === msg.messageId);
+                                
+                                if (messageIndex !== -1) {
+                                    const updatedMessages = [...messages];
+                                    updatedMessages[messageIndex] = { ...updatedMessages[messageIndex], isSeen: true };
+                
+                                    return {
+                                        ...prevChats,
+                                        [msg.messageStoreId]: {
+                                            ...prevChats[msg.messageStoreId],
+                                            messages: updatedMessages
+                                        }
+                                    };
+                                }
+                                return prevChats;
+                            });
+                        }
+                       });
+                    }
+                }
+            } catch (error) {
+             console.log(error);   
+            }
+        }
+
         fetchUserInfo();
         fetchUndeliveredMessages();
+        fetchMyOfflineMessagesStatus();
         // Socket event handlers
         newSocket.on('connect', () => {
             console.log('Connected to the server with id:', newSocket.id);
@@ -286,7 +327,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             sentMessageIds.current.add(messageId);
 
             // check user is online or offline
-
             // if user is in online
             if(chats[currEmailID].status==='online'){
                 socket.emit('sendMessage', {
@@ -315,6 +355,8 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                             messageId:messageId,
                             time: timestamp,
                             fullName: myFullName.current,
+                            isSeen:false,
+                            messageStoreId:currEmailID
                         }),
                     });
                     const data = await response.json();
@@ -1115,6 +1157,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                             const updatedChats = { ...prevChats };
                             if(updatedChats[currEmailID]){
                                 updatedChats[currEmailID].status=data.response.currStatus;
+                                updatedChats[currEmailID].profilePhoto=data.response.profilePhoto;
                             }
                             return updatedChats;
                         })
@@ -1461,7 +1504,6 @@ return (
                                                         { isUserMessage &&
                                                             <DoneAllOutlinedIcon 
                                                         sx={{
-                                                            // #3a70f0 797785
                                                             color: msg.isSeen ? '#7abcfa' :'#cdd1d4'
                                                         }}/>
                                                         }
@@ -1487,17 +1529,31 @@ return (
                                     😊 
                                 </button>
 
-                                <TextField
-                                    id="standard-basic"
-                                    placeholder='Your message'
-                                    variant="standard"
-                                    className="flex-grow "
+                                <textarea
+                                    placeholder="Your message"
                                     value={message}
-                                    disabled={chats[currEmailID]?.type === 'Group' && !chats[currEmailID]?.in}
                                     onChange={changeHandler}
+                                    disabled={chats[currEmailID]?.type === 'Group' && !chats[currEmailID]?.in}
+                                    rows={1}
+                                    style={{
+                                        width: '100%',
+                                        resize: 'none',
+                                        overflowY: 'hidden',
+                                        padding: '10px',
+                                        fontSize: '16px',
+                                        lineHeight: '1.5',
+                                        border: '1px solid #ccc',
+                                        borderRadius: '8px',
+                                        boxSizing: 'border-box',
+                                        whiteSpace: 'pre-wrap',
+                                        minHeight: '40px',
+                                        maxHeight: '100px',
+                                    }}
+                                    onInput={(e) => {
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = `${e.target.scrollHeight}px`;
+                                    }}
                                 />
-
-                                
 
                                 {/* Conditionally render the Emoji Picker */}
                                 {isEmojiPickerVisible && (
@@ -1506,7 +1562,7 @@ return (
                                     </div>
                                 )}
                                 <button>
-                                    <SendRoundedIcon  sx={{ color: 'primary.main' }} type="submit" className='-rotate-45 '/>
+                                    <SendRoundedIcon  sx={{ color: 'primary.main' }} type="submit" className='-rotate-45 ml-2 '/>
                                 </button>
                                 
                             </form>
