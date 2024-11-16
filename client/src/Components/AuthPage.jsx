@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Button, TextField, Typography, CircularProgress, Box } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const AuthPage = ({setemailId}) => {
@@ -275,6 +275,9 @@ const AuthPage = ({setemailId}) => {
                 variant="outlined"
                 className="mb-4"
               />
+
+              <p onClick={()=>navigate('/resetPassWord/Link')} className='text-blue-400 text-sm ml-2 cursor-pointer hover:text-blue-500 hover:underline' >Reset Password</p>
+
               {error && <Typography color="error">{error}</Typography>}
               <Button
                 type="submit"

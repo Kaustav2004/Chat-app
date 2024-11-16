@@ -9,6 +9,7 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from "mongoose";
 import UndeliverdMessage from '../Models/UndeliveredMessage.js';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -190,6 +191,38 @@ export const updateName = async (req,res) => {
             message: error.message
         });
     }
+}
+
+export const updatePassword = async (req,res) => {
+    const {prevPass, newPass, emailId} = req.body;
+
+    try {
+        // check prevpassword right or wrong
+        const userInfo = await User.findOne({emailId:emailId});
+        const isMatch = await bcrypt.compare(prevPass, userInfo.password);
+        if(!isMatch){
+            return res.status(400).json({
+                success:false,
+                message:"Your Current Password is wrong"
+            })
+        }
+
+        const hashPassword = await bcrypt.hash(newPass, 10);
+        const updatedUser = await User.findOneAndUpdate({emailId:emailId},{
+            password:hashPassword
+        },{new:true});
+
+        return res.status(200).json({
+            success:true,
+            message:"Password Updated Successfully"
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+    
 }
 
 export const deleteAccount = async (req,res) => {
@@ -523,6 +556,7 @@ export const getMyOfflineMessages = async (req,res) => {
     }
    
 }
+
 export const backUpChat = async (req,res)=>{
     try{
         const {emailId,chats} = req.body;

@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import AuthPage from './Components/AuthPage';
 import { Route,Routes,useNavigate,Navigate } from 'react-router-dom';
 import ChatPage from './Components/ChatPage';
-import UpdateProfile from './Components/updateProfile';
+import UpdateProfile from './Components/UpdateProfile';
 import { getEmailFromToken } from './Util/JwtDecode';
 import toast from 'react-hot-toast';
+import ResetPassword from './Components/ResetPassword';
 
 const App = () => {
   const infoEmail = getEmailFromToken();
@@ -45,6 +46,11 @@ const App = () => {
         element={
           emailId ? <UpdateProfile emailIdCurr={emailId}/> : <Navigate to={'/auth'} replace /> 
         } 
+      />
+
+      <Route 
+        path="/resetPassWord/:type"
+        element={<ResetPassword/>}
       />
 
       <Route path="*" element={  emailId ? <Navigate to={`/chat/${emailId}`} replace /> : <Navigate to={'/auth'} replace /> } />

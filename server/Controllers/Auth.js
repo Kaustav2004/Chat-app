@@ -3,6 +3,8 @@ import User from '../Models/User.js';
 import otpGenerator from 'otp-generator';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken'; 
+import ResetPasswordToken from '../Models/ResetPasswordToken.js';
+import { jwtDecode } from "jwt-decode";
 
 // sendotp
 export const sendOtp = async (req, res) => {
@@ -171,4 +173,78 @@ export const login = async (req, res) => {
             message: err.message
         });
     }
+}
+
+// reset Password Link send part
+export const resetPassword = async (req,res) => {
+    const {emailId} = req.body;
+
+    // Check if user exists or not
+    const userFind = await User.findOne({ emailId:emailId });
+    if (!userFind) {
+        return res.status(401).json({
+            success: false,
+            message: "User not exists"
+        });
+    }
+
+    // genearte token and store it db
+    const token = jwt.sign({ email: emailId }, process.env.JWT_SECRET, {
+        expiresIn: '10m'
+    });
+
+    try {
+        await ResetPasswordToken.create({emailId, token});
+
+        return res.status(200).json({
+            success:true,
+            message:"Reset Link send to your emailId"
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success:false,
+            message: error
+        })
+    }
+    
+}
+
+// reset password in DB
+export const resetPasswordDB = async (req,res) => {
+    const {token, password} = req.body;
+    try {
+        // verify token
+        const tokenVerify = await ResetPasswordToken.findOneAndDelete({token:token});
+        
+        if(!tokenVerify){
+            return res.status(404).json({
+                success:false,
+                message:"Token Expired.."
+            })
+        }
+
+        // find email from token and verify with db email
+        const decodedToken = jwtDecode(token);
+
+        // password hash
+        const hashPassword = await bcrypt.hash(password, 10);
+
+        // upload to db
+        const newUser = await User.findOneAndUpdate({emailId:decodedToken.email},{
+            password:hashPassword
+        })
+
+        
+        return res.status(200).json({
+            success:true,
+            message:"Password Updated Successfully"
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+    
 }
