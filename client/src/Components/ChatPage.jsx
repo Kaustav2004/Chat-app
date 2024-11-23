@@ -428,15 +428,14 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                 setChats((prevChats) => {
                     const updatedChats = { ...prevChats };
                     if (!updatedChats[currEmailID]) {
-                        updatedChats[currEmailID] = { messages: [], lastMessage: {} };
+                        updatedChats[currEmailID] = { messages: [], lastMessage: {}, messageIds: new Set([]) };
                     }
 
-                    // check again
-                    const messageExists = updatedChats[currEmailID].messages.some(
-                        msg => msg.messageId === messageId
-                    );
+                    // check again -- O(1)
+                    const messageExists = updatedChats[currEmailID].messageIds.has(messageId);
 
                     if(!messageExists){
+                        updatedChats[currEmailID].messageIds.add(messageId);
                         updatedChats[currEmailID].messages.push({
                             side: 'me',
                             message: message,
@@ -731,7 +730,8 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                             groupProfilePic,groupId:result.group._id,
                             members:result.group.members,
                             unreadMessages:0 ,
-                            in:true};
+                            in:true, 
+                            messageIds: new Set([]) };
                         }
                         return updatedChats;
                     });
@@ -1060,7 +1060,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                     const updatedChats = { ...prevChats };
                     if (!updatedChats[groupId]) {
                         updatedChats[groupId] = {type:'Group',messages: [], lastMessage: {}, fullName:groupName,groupId:groupId,profilePhoto:`https://api.dicebear.com/9.x/initials/svg?seed=${groupName}`,unreadMessages:0,
-                        members:'',in:true };
+                        members:'',in:true, messageIds: new Set([])  };
                     }
                     return updatedChats;
                 });
@@ -1069,16 +1069,16 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
             socket.on('receiveGroupMessage',(data) => {
                 console.log(data);
-                if (!sentMessageIds.current.has(data.messageId)){
+                if (!receiveMessageIds.current.has(data.messageId)){
 
                     setChats((prevChats) => {
                         const updatedChats = { ...prevChats };
 
                         // check again
-                        const messageExists = updatedChats[data.groupName].messages.some(
-                            msg => msg.messageId === data.messageId
-                        );
+                        const messageExists = updatedChats[data.groupName].messageIds.has(data.messageId);
+
                         if(!messageExists){
+                            updatedChats[data.groupName].messageIds.add(data.messageId);
                             const numOfUnreadMessage=updatedChats[data.groupName].unreadMessages+1;
                             updatedChats[data.groupName].unreadMessages=numOfUnreadMessage;
                             updatedChats[data.groupName].messages.push({
