@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import mongoose from "mongoose";
 import UndeliverdMessage from '../Models/UndeliveredMessage.js';
 import bcrypt from 'bcryptjs';
+import { group } from 'console';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -100,12 +101,13 @@ export const checkGroupName = async (req,res) => {
 
 export const createGroup = async (req,res) => {
     try{
-        const {groupName,members,groupProfilePic} = req.body;
+        const {groupName,members,groupProfilePic,admins} = req.body;
         
         const group = await Group.create({
             groupName,
             members,
-            groupProfilePic
+            groupProfilePic,
+            admins
         });
         
         // Update each member to include this new group ID in their list of groups
@@ -134,6 +136,54 @@ export const createGroup = async (req,res) => {
     }
 }
 
+export const makeAdmin = async (req,res) => {
+    const {groupId, userId} = req.body;
+
+    try {
+        await Group.findByIdAndUpdate(groupId,
+            { $push: { admins: userId } },
+            {new:true}
+        )
+        return res.status(200).json({
+            success:true
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+   
+}
+
+export const removeAdmin = async (req,res) => {
+    const {groupId, userId} = req.body;
+
+    try {
+        const group = await Group.findById(groupId);
+        console.log("groupInfo")
+        console.log(group);
+        if(group.admins.length==1){
+            return res.json({
+                success:false,
+                message:"Minimum one admin required"
+            })
+        }
+        await Group.findByIdAndUpdate(groupId,
+            { $pull: { admins: userId } },
+            {new:true}
+        )
+        return res.status(200).json({
+            success:true
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+   
+}
 export const imageUpload = async (req,res) => {
     try {
         const file = req.file;

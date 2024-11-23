@@ -39,7 +39,8 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const [showChatList, setShowChatList] = useState(true);
     const [groupFormData, setGroupFormData] = useState({
         groupName: '',
-        members: [emailId]
+        members: [emailId],
+        admins: [emailId]
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -51,7 +52,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const isSmallScreen = useMediaQuery('(max-width: 600px)');
     const emailInputRef = useRef(null);
     const [showImageFullscreen, setShowImageFullscreen] = useState(false);
-    const [newMember, setnewMember] = useState();
+    const [newMember, setnewMember] = useState('');
     const [isEmojiPickerVisible, setIsEmojiPickerVisible] = useState(false);
 
     const StyledBadge = styled(Badge)(({ theme }) => ({
@@ -703,9 +704,10 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         if(groupFormData.groupName.trim() && groupFormData.members.length>2){
             console.log('Group Data:', groupFormData);
 
-            // join all members in same group 
+            // join all members in same group
             const groupName = groupFormData.groupName.trim();
             const members = groupFormData.members;
+            const admins = groupFormData.admins;
 
             // db call for store group data
             try {
@@ -716,7 +718,8 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                         { 
                             groupName: groupName,
                             members:members,
-                            groupProfilePic:`https://api.dicebear.com/9.x/initials/svg?seed=${groupName}`
+                            groupProfilePic:`https://api.dicebear.com/9.x/initials/svg?seed=${groupName}`,
+                            admins: admins
                         })
                 });
             
@@ -835,12 +838,14 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             const data = await response.json();
 
             if(data.success){
+                const adminSet = new Set(data.response.admins);
                 setuserDetails({
                     fullName:data.response.groupName,
                     profilePic:data.response.groupProfilePic,
                     members:data.response.members,
                     created:data.response.createdAt,
-                    updated:data.response.updatedAt
+                    updated:data.response.updatedAt,
+                    adminSet:adminSet
                 })
                 setprofileDetails(true);
             }
@@ -1003,6 +1008,103 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             setnewMember();
             toast.error(`${error}`);
         } 
+    }
+
+    const makeAdminHandler = async () => {
+        try {
+            // check user is in group or not
+            const response1 = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: currEmailID })
+            });
+
+            const data1 = await response1.json();
+            if(!data1.success){
+                toast.error(`${data1.message}`);
+                setnewMember('');
+                return;
+            }
+            else{
+                // check user is already added or not
+                if(data1.response.members.includes(newMember) && !data1.response.admins.includes(newMember)){
+                   try {
+                        const response = await fetch('http://localhost:3000/api/v1/makeAdmin', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ groupId:currEmailID,userId: newMember })
+                        });
+            
+                        const data = await response.json();
+            
+                        if(!data.success){
+                            toast.error("Can't make admin");
+                        }
+                        else{
+                            toast.success("Done");
+                        }
+                   } catch (error) {
+                        console.log(error);
+                   }
+                   
+                }else{
+                    toast.error("Can't make admin");
+                }
+            }
+            setnewMember('');
+ 
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    const removeAdminHandler = async () => {
+        try {
+            // check user is in group or not
+            const response1 = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: currEmailID })
+            });
+
+            const data1 = await response1.json();
+            if(!data1.success){
+                toast.error(`${data1.message}`);
+                setnewMember('');
+                return;
+            }
+            else{
+                // check user is already added or not
+                if(data1.response.admins.includes(newMember)){
+                   try {
+                        const response = await fetch('http://localhost:3000/api/v1/removeAdmin', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ groupId:currEmailID,userId: newMember })
+                        });
+            
+                        const data = await response.json();
+            
+                        if(!data.success){
+                            toast.error("Can't remove from admin");
+                        }
+                        else{
+                            toast.success("Done");
+                        }
+                   } catch (error) {
+                        console.log(error);
+                   }
+                   
+                }
+                else{
+                    toast.error("Can't make admin");
+                }
+            }
+            setnewMember('');
+ 
+        } catch (error) {
+            console.log(error);
+        }
     }
 
     useEffect(() => {
@@ -1408,17 +1510,29 @@ return (
                                             <Typography variant='h5'>Members</Typography>
                                             <ul>
                                                 {Object.values(userDetails?.members).map((member, index) => (
-                                                    <li key={index}>{member}</li>
+                                                    <div className='flex justify-center items-center gap-2 mt-2'>
+                                                        <li key={index}>{member}</li>
+                                                    
+                                                        { userDetails?.adminSet.has(member) &&
+                                                        <div className='bg-green-200 text-green-500 p-1 rounded-md'>Admin</div>}
+                                                    </div> 
                                                 ))}
                                             </ul>
-                                            <div className='flex justify-center items-center '>
-                                                <TextField id="standard-basic" label="User Email ID" variant="standard" onChange={newMemberChangeHandler} value={newMember} />
-                                                <div className='gap-1 flex'>
-                                                    <Button variant="contained" onClick={addMemberHandler}>Add</Button>
-                                                    <Button variant='outlined' onClick={removeMemberHandler}>Remove</Button>
+                                            {
+                                                userDetails?.adminSet.has(emailId) && 
+                                                <div className='flex flex-col justify-center items-center gap-2'>
+                                                    <TextField id="standard-basic" label="User Email ID" variant="standard" onChange={newMemberChangeHandler} value={newMember} className='w-full' />
+                                                    
+                                                    <div className='gap-1 flex'>
+                                                        <Button variant="contained" onClick={addMemberHandler}>Add</Button>
+                                                        <Button variant='outlined' onClick={removeMemberHandler}>Remove</Button>
+                                                        <Button variant='contained' onClick={makeAdminHandler} >Make Admin</Button>
+                                                        <Button variant='outlined' onClick={removeAdminHandler} >Remove Admin</Button>
+
+                                                    </div>
+    
                                                 </div>
-                                                
-                                            </div>
+                                            }
                                             
                                         </>
                                     }

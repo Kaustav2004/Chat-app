@@ -9,6 +9,10 @@ const groupSchema = new mongoose.Schema({
         type:String,
         required:true
     }],
+    admins:[{
+        type:String,
+        required:true
+    }],
     groupProfilePic:{
         type:String
     },
