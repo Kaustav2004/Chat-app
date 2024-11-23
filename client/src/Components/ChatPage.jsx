@@ -28,6 +28,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const myFullName = useRef('');
     const myProfilePic = useRef('');
     const sentMessageIds = useRef(new Set());
+    const receiveMessageIds = useRef(new Set());
     const [socket, setSocket] = useState(null);
     const [receiverEmailID, setReceiverEmailID] = useState('');
     const [message, setMessage] = useState('');
@@ -1068,27 +1069,37 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
             socket.on('receiveGroupMessage',(data) => {
                 console.log(data);
+                if (!sentMessageIds.current.has(data.messageId)){
 
-                setChats((prevChats) => {
-                    const updatedChats = { ...prevChats };
-                    const numOfUnreadMessage=updatedChats[data.groupName].unreadMessages+1;
-                    updatedChats[data.groupName].unreadMessages=numOfUnreadMessage;
-                    updatedChats[data.groupName].messages.push({
-                        sender:data.fullName,
-                        senderEmail:data.sender,
-                        message: data.message,
-                        time: data.time,
-                        type:data.type
+                    setChats((prevChats) => {
+                        const updatedChats = { ...prevChats };
+
+                        // check again
+                        const messageExists = updatedChats[data.groupName].messages.some(
+                            msg => msg.messageId === data.messageId
+                        );
+                        if(!messageExists){
+                            const numOfUnreadMessage=updatedChats[data.groupName].unreadMessages+1;
+                            updatedChats[data.groupName].unreadMessages=numOfUnreadMessage;
+                            updatedChats[data.groupName].messages.push({
+                                messageId:data.messageId,
+                                sender:data.fullName,
+                                senderEmail:data.sender,
+                                message: data.message,
+                                time: data.time,
+                                type:data.type
+                            });
+        
+                            updatedChats[data.groupName].lastMessage = {
+                                message: data.message,
+                                time: data.time
+                            };
+                        }
+                        
+                        return updatedChats;
                     });
-
-                    updatedChats[data.groupName].lastMessage = {
-                        message: data.message,
-                        time: data.time
-                    };
-
-                    return updatedChats;
-                });
-
+                }
+                
             })
 
             socket.on('currStatus',(data) => {

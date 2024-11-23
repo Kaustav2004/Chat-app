@@ -97,10 +97,11 @@ io.on('connection', (socket) => {
   })
 
   // Handling chat messages within the group
-  socket.on('sendGroupMessage', ({ groupName, message, sender, time, fullName, type }) => {
+  socket.on('sendGroupMessage', ({ messageId, groupName, message, sender, time, fullName, type }) => {
 
     // Broadcast the message to all users in the group room
     socket.broadcast.to(groupName).emit('receiveGroupMessage', {
+      messageId,
       sender,
       message,
       groupName,

@@ -107,7 +107,6 @@ const AuthPage = ({setemailId}) => {
     setLoginData({ email: "", password: "" });
   };
   
-
   // Handle signup submission
   const signupSubmitHandler = async(e) => {
     e.preventDefault();
