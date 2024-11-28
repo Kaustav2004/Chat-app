@@ -141,6 +141,13 @@ export const login = async (req, res) => {
             });
         }
 
+        // check user is currently logged in or not
+        if(user.socketId!=='None'){
+            return res.status(401).json({
+                success:false,
+                message:"Already logged in another device"
+            })
+        }
         // Compare password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {

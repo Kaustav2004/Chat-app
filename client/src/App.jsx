@@ -12,11 +12,29 @@ const App = () => {
   const init = infoEmail ? infoEmail :'';
   const [emailId, setemailId] = useState(init);
   const navigate = useNavigate();
-  const logOutHandler = () => {
-    localStorage.removeItem('token');
-    navigate('/auth');
-    setemailId('');
-    toast.success('LogOut Successfully')
+  const logOutHandler = async() => {
+    try {
+      const response = await fetch('http://localhost:3000/api/v1/updateSocket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({emailId:emailId, socketId:'None'})
+      });
+
+      const data = await response.json();
+      if(data.success){
+        localStorage.removeItem('token');
+        navigate('/auth');
+        setemailId('');
+        toast.success('LogOut Successfully')
+      }
+      else{
+        toast.error("Problem in logOut");
+      }
+
+    } catch (error) {
+      toast.error("Problem in logOut");
+    }
+    
   }
   useEffect(() => {
     const response = getEmailFromToken();
