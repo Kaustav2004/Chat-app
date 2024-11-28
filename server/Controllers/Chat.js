@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 import UndeliverdMessage from '../Models/UndeliveredMessage.js';
 import bcrypt from 'bcryptjs';
 import { group } from 'console';
+import { uploadFireBase } from '../Util/uploadFirebase.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -184,6 +185,7 @@ export const removeAdmin = async (req,res) => {
     }
    
 }
+
 export const imageUpload = async (req,res) => {
     try {
         const file = req.file;
@@ -221,6 +223,32 @@ export const imageUpload = async (req,res) => {
 } 
 
 export const uploadMiddleware = upload.single('file');
+
+export const uploadFile = async (req,res) => {
+    try {
+        const file = req.file;
+        const filePath = path.join(uploadDir, file.filename);
+        const data = await uploadCloudinary(filePath);
+        console.log(data);
+
+        if (file.filename) {
+            deleteImage(file.filename);
+        }
+
+        return res.status(200).json({
+            success:true,
+            message:"File uploaded Successfully",
+            url:data.url
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+}
 
 export const updateName = async (req,res) => {
     try {
@@ -490,9 +518,9 @@ export const removeMember = async (req, res) => {
 };
 
 export const undeliveredMessageStore = async (req,res) => {
-    const {senderId, fullName, receiverIds, message, messageId, time, isSeen, messageStoreId} = req.body;
+    const {senderId, fullName, receiverIds, message, messageId, time, type, isSeen, messageStoreId} = req.body;
 
-    if (!senderId || !fullName || !receiverIds || receiverIds.length === 0 || !message || !messageId || !time || !messageStoreId) {
+    if (!senderId || !fullName || !receiverIds || receiverIds.length === 0 || !message || !messageId || !time || !type || !messageStoreId) {
         return res.status(400).json({
           success: false,
           message: "Missing required fields",
@@ -507,6 +535,7 @@ export const undeliveredMessageStore = async (req,res) => {
             message,
             messageId,
             time,
+            type,
             isSeen,
             messageStoreId
         })

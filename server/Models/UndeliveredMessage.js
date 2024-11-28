@@ -32,6 +32,10 @@ const undeliveredMessageSchema = new mongoose.Schema({
         type:String,
         required:true
     },
+    type:{
+        type:String,
+        required:true
+    },
     isSeen:{
         type:Boolean,
         required:true

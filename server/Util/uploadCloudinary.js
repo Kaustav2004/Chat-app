@@ -15,8 +15,8 @@ export const uploadCloudinary = async (filePath) => {
     // Set options for Cloudinary upload
     const options = {
         folder: process.env.CLOUDINARY_FOLDER_NAME,
-        resource_type: "auto",
-        allowed_formats:['jpg', 'jpeg'],
+        resource_type: "raw",
+        allowed_formats:['jpg', 'jpeg', 'png', 'pdf', 'mp3', 'mp4' , 'wav', 'webm', 'ogg'],
         quality: 'auto:low',
     };
 

@@ -19,6 +19,10 @@ import { styled } from '@mui/material/styles';
 import Badge from '@mui/material/Badge';
 import EmojiPicker from 'emoji-picker-react'
 import LogoutIcon from '@mui/icons-material/Logout';
+import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
+import { Worker, Viewer } from '@react-pdf-viewer/core';
+import '@react-pdf-viewer/core/lib/styles/index.css';
+import PdfPreview from '../Util/PdfViewer';
 
 const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const { emailId } = useParams();
@@ -54,6 +58,9 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const [showImageFullscreen, setShowImageFullscreen] = useState(false);
     const [newMember, setnewMember] = useState('');
     const [isEmojiPickerVisible, setIsEmojiPickerVisible] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [fullscreenFileUrl, setFullscreenFileUrl] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const StyledBadge = styled(Badge)(({ theme }) => ({
         '& .MuiBadge-badge': {
@@ -232,6 +239,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                                         messageId: msg.messageId,
                                         message: msg.message,
                                         time: msg.time,
+                                        type:msg.type,
                                         isSeen: false
                                     });
                 
@@ -314,6 +322,10 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         };
     }, []);
     
+    const toggleFullscreen = (fileUrl) => {
+        setFullscreenFileUrl(fileUrl);
+        setIsFullscreen(!isFullscreen);
+    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -337,6 +349,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                     receiver: currEmailID,
                     message: message,
                     time: timestamp,
+                    type:'text',
                     fullName: myFullName.current,
                     isSeen: false
                 });
@@ -356,6 +369,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                             message: message,
                             messageId:messageId,
                             time: timestamp,
+                            type:'text',
                             fullName: myFullName.current,
                             isSeen:false,
                             messageStoreId:currEmailID
@@ -390,6 +404,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                         messageId: messageId,
                         message: message,
                         time: timestamp,
+                        type:'text',
                         isSeen: false
                     });
     
@@ -576,64 +591,137 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         }
     }, [emailId]);
     
+    // useEffect(() => {
+    //     console.log("3"); 
+    //     if (currEmailID && chats[currEmailID]) {
+    //         if(chats[currEmailID]?.type === 'Group' && chats[currEmailID]?.unreadMessages>0){
+    //             setChats( prevChats => {
+    //                 const updatedMessages = [...prevChats[currEmailID].messages];
+    //                 return {
+    //                     ...prevChats,
+    //                     [currEmailID]: {
+    //                         ...prevChats[currEmailID],
+    //                         unreadMessages:0,
+    //                         messages: updatedMessages
+    //                     }
+    //                 };
+    //             })
+    //         }
+    //         else{
+    //             const allMessages = chats[currEmailID].messages || [];
+
+    //         // Filter only received messages that are unread (to avoid marking sent messages as seen)
+    //         const unreadMessages = allMessages.filter(
+    //             message => message.isSeen === false && message.side !== 'me' // Ensure only received messages
+    //         );
+    //         let numOfUnreadMessage=chats[currEmailID].unreadMessages-unreadMessages.length;
+    //         if(numOfUnreadMessage<0) numOfUnreadMessage=0;
+    //         if (unreadMessages.length > 0) {
+    //             unreadMessages.forEach(message => {
+    //                 const messageId = message.messageId;
+    
+    //                 // Emit seen update only for the unread received messages
+    //                 socket.emit('seenUpdate', { messageId, receiver: currEmailID, sender: emailId });
+    
+    //                 // Update isSeen locally after emitting to prevent re-emitting
+    //                 setChats(prevChats => {
+    //                     const updatedMessages = [...prevChats[currEmailID].messages];
+    //                     const messageIndex = updatedMessages.findIndex(msg => msg.messageId === messageId);
+    
+    //                     if (messageIndex !== -1) {
+    //                         updatedMessages[messageIndex] = {
+    //                             ...updatedMessages[messageIndex],
+    //                             isSeen: true
+    //                         };
+    //                     }
+    
+    //                     return {
+    //                         ...prevChats,
+    //                         [currEmailID]: {
+    //                             ...prevChats[currEmailID],
+    //                             unreadMessages:numOfUnreadMessage,
+    //                             messages: updatedMessages
+    //                         }
+    //                     };
+    //                 });
+    //             });
+    //          }
+    //         }
+            
+    //     }
+    // }, [currEmailID, chats, emailId, socket]);
+
     useEffect(() => {
         if (currEmailID && chats[currEmailID]) {
-            if(chats[currEmailID]?.type === 'Group' && chats[currEmailID]?.unreadMessages>0){
-                setChats( prevChats => {
+            // Check if it's a Group and if there are unread messages
+            if (chats[currEmailID]?.type === 'Group' && chats[currEmailID]?.unreadMessages > 0) {
+                setChats(prevChats => {
                     const updatedMessages = [...prevChats[currEmailID].messages];
-                    return {
-                        ...prevChats,
-                        [currEmailID]: {
-                            ...prevChats[currEmailID],
-                            unreadMessages:0,
-                            messages: updatedMessages
-                        }
-                    };
-                })
-            }
-            else{
-                const allMessages = chats[currEmailID].messages || [];
-
-            // Filter only received messages that are unread (to avoid marking sent messages as seen)
-            const unreadMessages = allMessages.filter(
-                message => message.isSeen === false && message.side !== 'me' // Ensure only received messages
-            );
-            let numOfUnreadMessage=chats[currEmailID].unreadMessages-unreadMessages.length;
-            if(numOfUnreadMessage<0) numOfUnreadMessage=0;
-            if (unreadMessages.length > 0) {
-                unreadMessages.forEach(message => {
-                    const messageId = message.messageId;
-    
-                    // Emit seen update only for the unread received messages
-                    socket.emit('seenUpdate', { messageId, receiver: currEmailID, sender: emailId });
-    
-                    // Update `isSeen` locally after emitting to prevent re-emitting
-                    setChats(prevChats => {
-                        const updatedMessages = [...prevChats[currEmailID].messages];
-                        const messageIndex = updatedMessages.findIndex(msg => msg.messageId === messageId);
-    
-                        if (messageIndex !== -1) {
-                            updatedMessages[messageIndex] = {
-                                ...updatedMessages[messageIndex],
-                                isSeen: true
-                            };
-                        }
-    
+                    
+                    // Only update if unreadMessages count is greater than 0
+                    if (prevChats[currEmailID].unreadMessages > 0) {
                         return {
                             ...prevChats,
                             [currEmailID]: {
                                 ...prevChats[currEmailID],
-                                unreadMessages:numOfUnreadMessage,
+                                unreadMessages: 0,
                                 messages: updatedMessages
                             }
                         };
-                    });
+                    }
+    
+                    return prevChats; // No changes to apply
                 });
-             }
+            } else {
+                const allMessages = chats[currEmailID].messages || [];
+    
+                // Filter unread messages that are received (not sent by 'me')
+                const unreadMessages = allMessages.filter(
+                    message => message.isSeen === false && message.side !== 'me'
+                );
+    
+                let numOfUnreadMessage = chats[currEmailID].unreadMessages - unreadMessages.length;
+                numOfUnreadMessage = Math.max(numOfUnreadMessage, 0);
+    
+                // Only update if there are unread messages
+                if (unreadMessages.length > 0) {
+                    unreadMessages.forEach(message => {
+                        const messageId = message.messageId;
+    
+                        // Emit seen update for unread received messages
+                        socket.emit('seenUpdate', { messageId, receiver: currEmailID, sender: emailId });
+    
+                        // Update `isSeen` locally after emitting to prevent re-emitting
+                        setChats(prevChats => {
+                            const updatedMessages = [...prevChats[currEmailID].messages];
+                            const messageIndex = updatedMessages.findIndex(msg => msg.messageId === messageId);
+    
+                            if (messageIndex !== -1) {
+                                updatedMessages[messageIndex] = {
+                                    ...updatedMessages[messageIndex],
+                                    isSeen: true
+                                };
+                            }
+    
+                            // Only update if the messages are actually changed
+                            if (prevChats[currEmailID].unreadMessages !== numOfUnreadMessage) {
+                                return {
+                                    ...prevChats,
+                                    [currEmailID]: {
+                                        ...prevChats[currEmailID],
+                                        unreadMessages: numOfUnreadMessage,
+                                        messages: updatedMessages
+                                    }
+                                };
+                            }
+    
+                            return prevChats; // No changes to apply
+                        });
+                    });
+                }
             }
-            
         }
-    }, [currEmailID, chats, emailId, socket]); 
+    }, [currEmailID, chats, emailId, socket]);
     
     const toggleChatList = () => {
         setCurrEmailID();
@@ -1107,6 +1195,125 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         }
     }
 
+    const fileUploadHandler = async(event) => {
+        setIsUploading(true);
+        const file = event.target.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('File size exceeds 5MB!');
+            return;
+        }
+        if (file) {
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // make backend call and recieve url will set on profilePic
+            try {
+                const response = await fetch('http://localhost:3000/api/v1/fileUpload', {
+                    method: 'POST',
+                    body: formData,
+                });
+        
+                const data = await response.json();
+
+                const messageId = Date.now();
+                const timestamp = Date().split("GMT")[0].trim();
+        
+                if (!sentMessageIds.current.has(messageId)) {
+                    // Add the message ID to the Set
+                    sentMessageIds.current.add(messageId);
+        
+                    // check user is online or offline
+                    // if user is in online
+                    if(chats[currEmailID].status==='online'){
+                        socket.emit('sendMessage', {
+                            messageId: messageId,
+                            sender: emailId,
+                            type:'file',
+                            receiver: currEmailID,
+                            message: data.url,
+                            time: timestamp,
+                            fullName: myFullName.current,
+                            isSeen: false
+                        });
+                    }
+                    
+        
+                    // if user is offline
+                    else{
+                        // store in DB
+                        try {
+                            const response1 = await fetch('http://localhost:3000/api/v1/storeUndeliveredMessage', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    senderId: emailId,
+                                    receiverIds: [currEmailID],
+                                    message: data.url,
+                                    type: 'file',
+                                    messageId:messageId,
+                                    time: timestamp,
+                                    fullName: myFullName.current,
+                                    isSeen:false,
+                                    messageStoreId:currEmailID
+                                }),
+                            });
+                            const data1 = await response1.json();
+        
+                            if(!data1.success){
+                                toast.error(`${data1.message}`);
+                            }
+        
+                        } catch (error) {
+                           toast.error(`${data.message}`);
+                        }
+                    }
+        
+                    // Update chats state
+                    setChats((prevChats) => {
+                        const updatedChats = { ...prevChats };
+                        if (!updatedChats[currEmailID]) {
+                            updatedChats[currEmailID] = { messages: [], lastMessage: {},unreadMessages:0, status:'' };
+                        }
+        
+                        // check again
+                        const messageExists = updatedChats[currEmailID].messages.some(
+                            msg => msg.messageId === messageId
+                        );
+        
+                        if(!messageExists){
+                            updatedChats[currEmailID].messages.push({
+                                side: 'me',
+                                type: 'file',
+                                messageId: messageId,
+                                message:  data.url,
+                                time: timestamp,
+                                isSeen: false
+                            });
+            
+                            updatedChats[currEmailID].lastMessage = {
+                                side: 'me',
+                                message: message,
+                                time: timestamp
+                            };
+                        }
+                        
+                        // Clear message input immediately after sending
+                        setMessage('');
+                        return updatedChats;
+                    });
+                }
+
+
+            } catch (error) {
+                console.log(error);
+            }  finally {
+                setIsUploading(false);
+            }
+
+        }
+    }
+
     useEffect(() => {
         if (socket) {
             socket.on('receiveMessage', (data) => {
@@ -1125,6 +1332,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                         messageId: data.messageId,
                         message: data.message,
                         time: data.time,
+                        type:data.type,
                         isSeen: data.isSeen
                     });
 
@@ -1248,7 +1456,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         }
     }, [socket, emailId]);
 
-    useEffect( () => {      
+    useEffect( () => {     
         if(currEmailID){
             if(chats[currEmailID].type===undefined || chats[currEmailID]?.type!=='Group'){
                 console.log("emit for checking status")
@@ -1619,7 +1827,74 @@ return (
                                                         <Typography variant="body1 font-AfacadFlux" className="break-words block">{msg.sender} ({msg.senderEmail})</Typography>
                                                     }
                                                     
-                                                    <Typography variant="body1 font-AfacadFlux" className="break-words">{msg.message}</Typography>
+                                                    {   (!msg.type||msg?.type!=='file') &&
+                                                        <Typography variant="body1 font-AfacadFlux" className="break-words">{msg.message}</Typography>
+                                                    }
+
+                                                    {
+                                                    msg.type === 'file' && typeof msg.message === 'string' && (
+                                                        (() => {
+                                                        const fileType = msg.message.split('.').pop().toLowerCase();
+
+                                                        if (fileType === 'pdf') {
+                                                            // Handle PDF files
+                                                            return <PdfPreview pdfUrl={msg.message} />;
+                                                        } else if (['mp3', 'wav', 'ogg'].includes(fileType)) {
+                                                            // Handle Audio files
+                                                            return (
+                                                            <audio controls className="w-full max-w-sm rounded-md">
+                                                                <source src={msg.message} type={`audio/${fileType}`} />
+                                                                Your browser does not support the audio element.
+                                                            </audio>
+                                                            );
+                                                        } else if (['mp4', 'webm', 'ogg'].includes(fileType)) {
+                                                            // Handle Video files
+                                                            return (
+                                                            <video controls className="w-full max-w-sm rounded-md">
+                                                                <source src={msg.message} type={`video/${fileType}`} />
+                                                                Your browser does not support the video element.
+                                                            </video>
+                                                            );
+                                                        } else {
+                                                            // Handle Image files
+                                                            return (
+                                                            <img
+                                                                onClick={() => toggleFullscreen(msg.message)}
+                                                                src={msg.message}
+                                                                alt="Uploaded file"
+                                                                className="w-fit h-fit max-h-[200px] rounded-md cursor-pointer"
+                                                            />
+                                                            );
+                                                        }
+                                                        })()
+                                                    )
+                                                    }
+
+
+                                                    {isFullscreen && (
+                                                            <div
+                                                            onClick={() => setIsFullscreen(false)} // Close modal when clicking outside
+                                                            className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50"
+                                                            >
+                                                            <div className="relative w-full h-full max-w-4xl max-h-full">
+                                                                <div className="absolute top-0 right-0 p-2 cursor-pointer">
+                                                                <span
+                                                                    className="text-white text-xl"
+                                                                    onClick={() => setIsFullscreen(false)} // Close button
+                                                                >
+                                                                    X
+                                                                </span>
+                                                                </div>
+                                                                <div className="w-full h-full">
+                                                                <img
+                                                                    src={fullscreenFileUrl}
+                                                                    alt="Fullscreen view"
+                                                                    className="w-full h-full object-contain"  // Ensure the image scales properly
+                                                                />
+                                                                </div>
+                                                            </div>
+                                                            </div>
+                                                        )}
 
                                                     <Box className='flex gap-1'>
                                                         <Typography variant="caption font-AfacadFlux" className="text-gray-400 block text-right">
@@ -1644,7 +1919,7 @@ return (
                                 {/* <div ref={messagesEndRef} /> */}
                             </div>
 
-                            <form onSubmit={chats[currEmailID]?.type==='Group'? sendGroupMessage : sendHandler} className="flex p-2">
+                            <form onSubmit={chats[currEmailID]?.type==='Group'? sendGroupMessage : sendHandler} className="flex p-2 relative border-2 rounded-md">
 
                                 {/* Emoji Picker Trigger Icon */}
                                 <button 
@@ -1654,7 +1929,17 @@ return (
                                     😊 
                                 </button>
 
-                                <textarea
+                                {
+                                    isUploading ? (
+                                        <div
+                                        className="flex items-center justify-center w-full p-2 text-sm text-gray-600 bg-gray-100 border border-gray-300 rounded-md"
+                                    >
+                                        Processing your file...
+                                        </div>
+                                    )
+                                    :
+                                    (
+                                        <textarea
                                     placeholder="Your message"
                                     value={message}
                                     onChange={changeHandler}
@@ -1679,7 +1964,18 @@ return (
                                     e.target.style.height = `${e.target.scrollHeight}px`;
                                     }}
                                 />
+                                    )
+                                }
+                                
 
+                                <input type='file' hidden id='file' onChange={fileUploadHandler}></input>
+                                <div
+                                    className="cursor-pointer mt-2 text-gray-500 mr-2"
+                                    onClick={() => document.getElementById('file').click()}
+                                >
+                                    <AttachFileOutlinedIcon className="text-xl" />
+                                </div>
+                                
                                 {/* Conditionally render the Emoji Picker */}
                                 {isEmojiPickerVisible && (
                                     <div className="absolute bottom-12 left-0 z-10">

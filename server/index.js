@@ -118,9 +118,9 @@ io.on('connection', (socket) => {
   })
   
   // Send message to another user by their room (email)
-  socket.on('sendMessage', ({ messageId, sender, receiver, message, time, fullName,isSeen }) => {
+  socket.on('sendMessage', ({ messageId, sender, receiver, message, time, type, fullName,isSeen }) => {
     console.log(`${sender} sends message to ${receiver}: ${message}`);
-    io.to(receiver).emit('receiveMessage', { messageId, sender, message, time, fullName, isSeen});
+    io.to(receiver).emit('receiveMessage', { messageId, sender, message, time, type, fullName, isSeen});
   });
 
   // update seen message
@@ -178,6 +178,7 @@ io.on('connection', (socket) => {
 
 // dbConnect
 dbConnect();
+
 // Start the server
 const PORT = 3000;
 server.listen(PORT, () => {
