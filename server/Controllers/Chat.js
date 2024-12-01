@@ -11,7 +11,6 @@ import mongoose from "mongoose";
 import UndeliverdMessage from '../Models/UndeliveredMessage.js';
 import bcrypt from 'bcryptjs';
 import { group } from 'console';
-import { uploadFireBase } from '../Util/uploadFirebase.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -191,14 +190,23 @@ export const imageUpload = async (req,res) => {
         const file = req.file;
         const emailId = req.body.emailId;
         const prevURL = req.body.prevURL;
+        const type = req.body.type;
 
         const filePath = path.join(uploadDir, file.filename);
         const url = await uploadCloudinary(filePath);
 
         // change in DB
-        await User.findOneAndUpdate({emailId:emailId},
-            {profilePhoto:url.secure_url}
-        )
+        if(type=='Group'){
+            await Group.findByIdAndUpdate(emailId,{
+                groupProfilePic:url.secure_url
+            })
+        }
+        else{
+            await User.findOneAndUpdate({emailId:emailId},
+                {profilePhoto:url.secure_url}
+            )
+        }
+        
 
         if(prevURL){
             await deleteCloudinary(prevURL);
@@ -368,8 +376,10 @@ export const updateStatus = async (req,res)=>{
 export const updateSocket = async (req,res) => {
     const {emailId,socketId} = req.body;
     try {
+        const expiryTime = new Date(Date.now() + 12 * 60 * 60 * 1000);
         const response = await User.findOneAndUpdate({emailId:emailId},{
-            socketId:socketId
+                socketId:socketId,
+                socketIdExpiry: expiryTime
         },{new:true});
         if(response){
             return res.status(200).json({
@@ -516,6 +526,62 @@ export const removeMember = async (req, res) => {
         });
     }
 };
+
+export const deleteGroup = async (req,res) => {
+    const {groupId, userId} = req.body;
+
+    try {
+        // check group exist or not
+        const group = await Group.findById(groupId);
+        
+        if(!group){
+            return res.status(404).json({
+                success:false,
+                message: "Group is not exist"
+            })
+        }
+        // userId is admin or not
+        const isAdmin = group.admins.some(admin => admin === userId);
+
+        if(!isAdmin){
+            return res.status(401).json({
+                success:false,
+                message:"Only Admin can delete group"
+            })
+        }
+
+        // remove groupId from all user profile
+        await Promise.all(
+            group.members.map(async (member) => {
+                const user = await User.findOne({ emailId: member });
+                if (user) {
+                    const newGroups = user.groups.filter((group) => group !== groupId);
+                    await User.findOneAndUpdate(
+                        { emailId: member },
+                        { groups: newGroups }
+                    );
+                }
+            })
+        );
+
+        // remove dp
+        await deleteCloudinary(group.groupProfilePic);
+
+        // delete group
+        await Group.findByIdAndDelete(groupId);
+
+        res.status(200).json({
+            success:true,
+            message:"Group deleted successfully"
+        })
+
+    } catch (error) {
+        return res.status(500).json({
+            success:false,
+            message:error
+        })
+    }
+}
 
 export const undeliveredMessageStore = async (req,res) => {
     const {senderId, fullName, receiverIds, message, messageId, time, type, isSeen, messageStoreId} = req.body;

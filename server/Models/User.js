@@ -19,6 +19,9 @@ const userSchema = new mongoose.Schema({
     socketId:{
         type:String
     },
+    socketIdExpiry: {
+        type: Date
+    },
     password:{
         type:String,
         required:true

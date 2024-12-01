@@ -59,6 +59,7 @@ const UpdateProfile = ({emailIdCurr}) => {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('emailId', emailId);
+            formData.append('type', 'Personal');
             formData.append('prevURL', userData.profilePic);
 
             // make backend call and recieve url will set on profilePic
