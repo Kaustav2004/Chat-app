@@ -10,7 +10,6 @@ import { fileURLToPath } from 'url';
 import mongoose from "mongoose";
 import UndeliverdMessage from '../Models/UndeliveredMessage.js';
 import bcrypt from 'bcryptjs';
-import { group } from 'console';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -702,10 +701,77 @@ export const getMyOfflineMessages = async (req,res) => {
    
 }
 
+export const groupMessageStore = async (req,res) => {
+    const {message, groupId} = req.body;
+    try {
+        const addMessage = await Group.findByIdAndUpdate(groupId,
+            {
+                $push:{messages:message}
+            }
+        )
+        
+        if(addMessage){
+            return res.status(200).json({
+                success:true,
+                message:"Message added successfully"
+            })
+        }
+        return res.status(404).json({
+            success:false,
+            message:"Group not found"
+        })
+
+    } catch (error) {
+        return res.status(500).json({
+            success:false,
+            message:error.message
+        })
+    }
+}
+
+export const fetchGroupMessages = async (req,res) => {
+    const {groupId} = req.body;
+    try {
+        const groupInfo = await Group.findById(groupId);
+
+        if(!groupInfo){
+            return res.status(404).json({
+                success:false,
+                message: "This group is not available"
+            })
+        }
+
+        return res.status(200).json({
+            success:true,
+            messages:groupInfo.messages
+        })
+
+    } catch (error) {
+        return res.status(500).json({
+            success:false,
+            messages:error.message
+        })
+    }
+}
+
 export const backUpChat = async (req,res)=>{
     try{
         const {emailId,chats} = req.body;
-        const fetchUser = await User.findOne({emailId:emailId});
+        const updatedUser = await User.findOneAndUpdate({emailId: emailId},{
+            chats:chats
+        })
+
+        if(updatedUser){
+            return res.status(200).json({
+                success:true,
+                message:"Chats backed up successfully"
+            })
+        }
+
+        return res.status(404).json({
+            success:true,
+            message:"Try again..."
+        })
 
     }
     catch(err){

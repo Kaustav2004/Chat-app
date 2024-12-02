@@ -23,6 +23,7 @@ const App = () => {
       const data = await response.json();
       if(data.success){
         localStorage.removeItem('token');
+        localStorage.removeItem(`${emailId}`);
         navigate('/auth');
         setemailId('');
         toast.success('LogOut Successfully')

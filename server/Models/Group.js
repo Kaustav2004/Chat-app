@@ -16,6 +16,9 @@ const groupSchema = new mongoose.Schema({
     groupProfilePic:{
         type:String
     },
+    messages:[{
+        type:Object
+    }],
     craetedAt:{
         type:Date,
         required:true,

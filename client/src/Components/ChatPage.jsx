@@ -22,9 +22,12 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import PdfPreview from '../Util/PdfViewer';
+import BackupIcon from '@mui/icons-material/Backup';
+import PublishIcon from '@mui/icons-material/Publish';
 
 const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const { emailId } = useParams();
+    const BackendUrl = import.meta.env.VITE_BASE_URL;
     const navigate = useNavigate();
     const messagesEndRef = useRef(null);
     const localStorageChats = JSON.parse(localStorage.getItem(emailId));
@@ -36,7 +39,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const [receiverEmailID, setReceiverEmailID] = useState('');
     const [message, setMessage] = useState('');
     const [chats, setChats] = useState(localStorageChats);
-    const [currEmailID, setCurrEmailID] = useState();
+    const [currEmailID, setCurrEmailID] = useState('');
     const [mainPageLoad, setmainPageLoad] = useState(false);
     const [openGroupForm, setopenGroupForm] = useState(false);
     const [showChatList, setShowChatList] = useState(true);
@@ -61,6 +64,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const [fullscreenFileUrl, setFullscreenFileUrl] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [loadDp, setloadDp] = useState(false);
+    const [backup, setBackup] = useState(false);
 
     const StyledBadge = styled(Badge)(({ theme }) => ({
         '& .MuiBadge-badge': {
@@ -100,81 +104,80 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     }));
       
     useEffect(() => {
-        console.log(chats);
         if(emailId!==emailIdCurr){
             navigate('/auth');
             return;
         }
         setmainPageLoad(true);
-        const newSocket = io('http://localhost:3000');
+        const newSocket = io(`${BackendUrl}`);
     
         const fetchUserInfo = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+                const response = await fetch(`${BackendUrl}/api/v1/checkUser`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ emailId: emailId }),
                 });
                 const data = await response.json();
-    
+
+                if(!chats){
+                    setChats(data.response.chats);
+                }
                 // Update profile info
                 myFullName.current = data.response.fullName;
                 myProfilePic.current = data.response.profilePhoto;
 
-                // Store rooms from local storage
-                // const roomsFromStorage = JSON.parse(localStorage.getItem(`${emailId}Rooms`));
-
-                    const groups = data.response.groups;
-                    console.log(groups);
-                    
-                    // Create a local Set to track the current groups
-                    const updatedGroups = new Set(groups.map(group => group._id));
-                    
-                    // Update allRooms with new group IDs
-                    setallRooms(() => {
-                        const updatedRooms = {};
-                        groups.forEach((group, index) => {
-                            updatedRooms[index] = group._id;
-                        });
-                        return updatedRooms;
+                const groups = data.response.groups;
+                
+                // Create a local Set to track the current groups
+                const updatedGroups = new Set(groups.map(group => group._id));
+                
+                // Update allRooms with new group IDs
+                setallRooms(() => {
+                    const updatedRooms = {};
+                    groups.forEach((group, index) => {
+                        updatedRooms[index] = group._id;
                     });
-                    
-                    // Update chats
-                    setChats((prevChats) => {
-                        const updatedChats = { ...prevChats };
-                    
-                        // Add or update chats for current groups
-                        groups.forEach(group => {
-                            if (!updatedChats[group._id]) {
-                                // Add new group
-                                updatedChats[group._id] = {
-                                    type: 'Group',
-                                    messages: [],
-                                    lastMessage: {},
-                                    fullName: group.groupName,
-                                    groupId: group._id,
-                                    profilePhoto: group.groupProfilePic,
-                                    unreadMessages: 0,
-                                    members: group.members,
-                                    messageIds: new Set([]) ,
-                                    in: true
-                                };
-                            } else {
-                                // Update profilePhoto for existing group
-                                updatedChats[group._id].profilePhoto = group.groupProfilePic;
-                                updatedChats[group._id]. messageIds = new Set([]) ;
-                            }
-                        });
-                    
-                        // Remove chats that are no longer in the current groups
-                        Object.keys(updatedChats).forEach(chatId => {
-                            if (!updatedGroups.has(chatId) && updatedChats[chatId].type==='Group') {
-                                delete updatedChats[chatId];
-                            }
-                        });
-                    
-                        return updatedChats;
+                    updatedRooms[Object.keys(updatedRooms).length] = emailId;
+                    return updatedRooms;
+                });
+                
+                // Update chats
+                setChats((prevChats) => {
+                    const updatedChats = { ...prevChats };
+                
+                    // Add or update chats for current groups
+                    groups.forEach(group => {
+                        if (!updatedChats[group._id]) {
+                            // Add new group
+                            updatedChats[group._id] = {
+                                type: 'Group',
+                                messages: [],
+                                lastMessage: {},
+                                fullName: group.groupName,
+                                groupId: group._id,
+                                profilePhoto: group.groupProfilePic,
+                                unreadMessages: 0,
+                                members: group.members,
+                                messageIds: new Set([]) ,
+                                in: true
+                            };
+                        } else {
+                            // Update profilePhoto for existing group
+                            updatedChats[group._id].profilePhoto = group.groupProfilePic;
+                            updatedChats[group._id]. messageIds = new Set([]) ;
+                        }
                     });
+                
+                    // Remove chats that are no longer in the current groups
+                    Object.keys(updatedChats).forEach(chatId => {
+                        if (!updatedGroups.has(chatId) && updatedChats[chatId].type==='Group') {
+                            delete updatedChats[chatId];
+                        }
+                    });
+                
+                    return updatedChats;
+                });
                     
                 // }
                 
@@ -192,7 +195,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                 try {
                     const promises = Object.keys(chats).map(async (email) => {
                         if(chats[email]?.type !== 'Group'){
-                            const response = await fetch('http://localhost:3000/api/v1/fetchStatus', {
+                            const response = await fetch(`${BackendUrl}/api/v1/fetchStatus`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ emailId: email }),
@@ -234,7 +237,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
         const fetchUndeliveredMessages = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/v1/getUndeliveredMessage', {
+                const response = await fetch(`${BackendUrl}/api/v1/getUndeliveredMessage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ receiverId: emailId }),
@@ -242,7 +245,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                 const data = await response.json();
 
                 if(data.success){
-                    console.log(data.response);
                     if(data.response && data.response.length>0){
                         data.response.forEach(msg => {
                             setChats((prevChats) => {
@@ -258,7 +260,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
                                 if(!messageExists){
                                     updatedChats[msg.senderId].fullName = msg.fullName;
-                                    // console.log(updatedChats[data.seder]);
                                     const numOfUnreadMessage=updatedChats[msg.senderId].unreadMessages+1;
                                     updatedChats[msg.senderId].unreadMessages=numOfUnreadMessage;
                                     updatedChats[msg.senderId].messages.push({
@@ -287,7 +288,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
         const fetchMyOfflineMessagesStatus = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/v1/getMyOfflineMessages', {
+                const response = await fetch(`${BackendUrl}/api/v1/getMyOfflineMessages`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ senderId: emailId }),
@@ -331,17 +332,16 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
         // Socket event handlers
         newSocket.on('connect', () => {
-            console.log('Connected to the server with id:', newSocket.id);
             const updateStatus = async () =>{
                 try {
 
-                    const response1 = await fetch('http://localhost:3000/api/v1/updateSocket', {
+                    const response1 = await fetch(`${BackendUrl}/api/v1/updateSocket`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ emailId: emailId, socketId: newSocket.id })
                     });
                     
-                   const response = await fetch('http://localhost:3000/api/v1/updateStatus', {
+                   const response = await fetch(`${BackendUrl}/api/v1/updateStatus`, {
                        method: 'POST',
                        headers: { 'Content-Type': 'application/json' },
                        body: JSON.stringify({ socketId: newSocket.id, status:"online" })
@@ -368,17 +368,50 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         };
     }, []);
     
+    useEffect(() => {
+        if(Object.keys(allRooms).length>1){
+            
+            Object.keys(allRooms).map( async (room) => {
+                if(chats[allRooms[room]] && chats[allRooms[room]]?.type==='Group'){
+                    const response = await fetch(`${BackendUrl}/api/v1/fetchGroupMessages`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ groupId:allRooms[room]})
+                    });
+        
+                    const data = await response.json();
+        
+                    if(data.success){
+                        setChats((prevChats)=>{
+                            const updatedChats = {...prevChats};
+
+                            updatedChats[allRooms[room]].messages = [
+                                ...data.messages.flat()  // Flatten the nested arrays
+                            ];
+
+                            const lastMessage = data.messages.flat().slice(-1)[0]; // Get the last message
+                            updatedChats[allRooms[room]].lastMessage = lastMessage;
+
+                            return updatedChats;
+                        })
+                    }
+                }
+                
+            })
+        }
+       
+    }, [allRooms])
+    
     const toggleFullscreen = (fileUrl) => {
         setFullscreenFileUrl(fileUrl);
         setIsFullscreen(!isFullscreen);
     };
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-
     const sendHandler = async (e) => {
         e.preventDefault();
+
+        if(message==='') return;
+        
         const messageId = Date.now();
         const timestamp = Date().split("GMT")[0].trim();
 
@@ -406,7 +439,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             else{
                 // store in DB
                 try {
-                    const response = await fetch('http://localhost:3000/api/v1/storeUndeliveredMessage', {
+                    const response = await fetch(`${BackendUrl}/api/v1/storeUndeliveredMessage`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
@@ -468,7 +501,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         }
     };
 
-    const sendGroupMessage = (e) => {
+    const sendGroupMessage = async (e) => {
         e.preventDefault();
         const messageId = Date.now();
         const timestamp = Date().split("GMT")[0].trim();
@@ -515,6 +548,28 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                     setMessage('');
                     return updatedChats;
                 });
+
+                // make message object
+                const messageObject = [{
+                    messageId: messageId,
+                    sender:myFullName.current,
+                    senderEmail: emailId,
+                    message: message,
+                    time: timestamp,
+                    type:'Normal Message'
+                }]
+
+                // add to db also
+                try {
+                    await fetch(`${BackendUrl}/api/v1/groupMessageStore`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ groupId:currEmailID, message: messageObject })
+                    });
+
+                } catch (error) {
+                    console.log(error);
+                }
             }
         }
     };
@@ -536,7 +591,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const getUserInfo = async (email)=> {
 
         try {
-            const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+            const response = await fetch(`${BackendUrl}/api/v1/checkUser`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ emailId: email })
@@ -568,14 +623,13 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                 return;
             }
             try {
-                const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+                const response = await fetch(`${BackendUrl}/api/v1/checkUser`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ emailId: receiverEmailID })
                 });
 
                 const data = await response.json();
-                console.log(data);
                 if (data.success) {
                     toast.success(`${data.message}`);
                     setCurrEmailID(receiverEmailID);
@@ -617,13 +671,16 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const newMemberChangeHandler = (e) => {
         setnewMember(e.target.value);
     }
-    // auto scroll handle
-    // useEffect(() => {
-    //     scrollToBottom();
-    // }, [ chats[currEmailID]?.messages]);
+
+    // Scroll to the bottom whenever the messages change
+    useEffect(() => {
+        // Ensure that currEmailID and the corresponding messages are available
+        if (currEmailID && chats && chats[currEmailID] && chats[currEmailID].messages && messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [currEmailID, chats]);
 
     useEffect(() => {
-      console.log(chats);
       localStorage.setItem(`${emailId}`, JSON.stringify(chats));
     }, [chats])
 
@@ -787,7 +844,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         if(!groupFormData.members.includes(emailInput)){
             try {
                 // Call the backend API to check if the email exists
-                const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+                const response = await fetch(`${BackendUrl}/api/v1/checkUser`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ emailId: emailInput })
@@ -836,7 +893,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         setLoading(true);
 
         if(groupFormData.groupName.trim() && groupFormData.members.length>2){
-            console.log('Group Data:', groupFormData);
 
             // join all members in same group
             const groupName = groupFormData.groupName.trim();
@@ -845,7 +901,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
             // db call for store group data
             try {
-                const response = await fetch('http://localhost:3000/api/v1/createGroup', {
+                const response = await fetch(`${BackendUrl}/api/v1/createGroup`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(
@@ -858,7 +914,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                 });
             
                 const result = await response.json();
-                console.log(result);
                 if(result.success){
                     setChats((prevChats) => {
                         const updatedChats = { ...prevChats };
@@ -875,7 +930,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         
                     setallRooms((prevRooms) => {
                         const updatedRooms = { ...prevRooms };
-                        console.log(updatedRooms);
         
                         // Get the next index (numeric key)
                         const nextIndex = Object.keys(updatedRooms).length;
@@ -888,7 +942,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
                     Object.entries(members).map(([key,emailid])=>{
                         if(emailid!==emailId){
-                            console.log(emailid);
                             socket.emit('notify', {
                                 emailId:emailid,
                                 groupId:result.group._id,
@@ -930,7 +983,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         setprofileSkeleton(true);
 
         try {
-            const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+            const response = await fetch(`${BackendUrl}/api/v1/checkUser`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ emailId: email })
@@ -951,7 +1004,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                 toast.error(`${data.message}`);
             }
 
-            console.log(data);
         } catch (error) {
             toast.error(`${error}`);
         }
@@ -963,7 +1015,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         setprofileSkeleton(true);
 
         try {
-            const response = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+            const response = await fetch(`${BackendUrl}/api/v1/fetchGroupInfo`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: groupId })
@@ -987,7 +1039,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                 toast.error(`${data.message}`);
             }
 
-            console.log(data);
         } catch (error) {
             toast.error(`${error}`);
         }
@@ -998,7 +1049,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const addMemberHandler = async () => {
         // first find new member is in db or not
         try {
-            const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+            const response = await fetch(`${BackendUrl}/api/v1/checkUser`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ emailId: newMember })
@@ -1007,7 +1058,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             const data = await response.json();
 
             // check group id and is the user is already in group
-            const response2 = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+            const response2 = await fetch(`${BackendUrl}/api/v1/fetchGroupInfo`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: currEmailID })
@@ -1029,7 +1080,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             }
             if(data.success){
                 try {
-                    const response = await fetch('http://localhost:3000/api/v1/addMember', {
+                    const response = await fetch(`${BackendUrl}/api/v1/addMember`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ groupId: currEmailID, newMember: newMember })
@@ -1071,7 +1122,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const removeMemberHandler = async () => {
         // first find member is in db or not
         try {
-            const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+            const response = await fetch(`${BackendUrl}/api/v1/checkUser`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ emailId: newMember })
@@ -1080,7 +1131,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             const data = await response.json();
 
             // check group id and is the user is in group or not
-            const response2 = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+            const response2 = await fetch(`${BackendUrl}/api/v1/fetchGroupInfo`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: currEmailID })
@@ -1102,7 +1153,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             }
             if(data.success){
                 try {
-                    const response = await fetch('http://localhost:3000/api/v1/removeMember', {
+                    const response = await fetch(`${BackendUrl}/api/v1/removeMember`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ groupId: currEmailID, member: newMember })
@@ -1147,7 +1198,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const leftGroupHandler = async () => {
         // first find member is in db or not
         try {
-            const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+            const response = await fetch(`${BackendUrl}/api/v1/checkUser`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ emailId: emailId })
@@ -1156,7 +1207,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             const data = await response.json();
 
             // check group id and is the user is in group or not
-            const response2 = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+            const response2 = await fetch(`${BackendUrl}/api/v1/fetchGroupInfo`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: currEmailID })
@@ -1176,7 +1227,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             }
             if(data.success){
                 try {
-                    const response = await fetch('http://localhost:3000/api/v1/removeMember', {
+                    const response = await fetch(`${BackendUrl}/api/v1/removeMember`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ groupId: currEmailID, member: emailId })
@@ -1194,10 +1245,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                             fullName:myFullName.current,
                             type:'AlertMessage'
                         });
-                        // socket.emit('disableUser',{
-                        //     groupName:currEmailID,
-                        //     user:newMember
-                        // })
+
                         toast.success(`${data.message}`);
                     }
                     else{
@@ -1221,7 +1269,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const makeAdminHandler = async () => {
         try {
             // check user is in group or not
-            const response1 = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+            const response1 = await fetch(`${BackendUrl}/api/v1/fetchGroupInfo`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: currEmailID })
@@ -1237,7 +1285,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                 // check user is already added or not
                 if(data1.response.members.includes(newMember) && !data1.response.admins.includes(newMember)){
                    try {
-                        const response = await fetch('http://localhost:3000/api/v1/makeAdmin', {
+                        const response = await fetch(`${BackendUrl}/api/v1/makeAdmin`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ groupId:currEmailID,userId: newMember })
@@ -1269,7 +1317,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     const removeAdminHandler = async () => {
         try {
             // check user is in group or not
-            const response1 = await fetch('http://localhost:3000/api/v1/fetchGroupInfo', {
+            const response1 = await fetch(`${BackendUrl}/api/v1/fetchGroupInfo`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: currEmailID })
@@ -1285,7 +1333,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                 // check user is already added or not
                 if(data1.response.admins.includes(newMember)){
                    try {
-                        const response = await fetch('http://localhost:3000/api/v1/removeAdmin', {
+                        const response = await fetch(`${BackendUrl}/api/v1/removeAdmin`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ groupId:currEmailID,userId: newMember })
@@ -1329,7 +1377,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
             // make backend call and recieve url will set on profilePic
             try {
-                const response = await fetch('http://localhost:3000/api/v1/fileUpload', {
+                const response = await fetch(`${BackendUrl}/api/v1/fileUpload`, {
                     method: 'POST',
                     body: formData,
                 });
@@ -1363,7 +1411,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
                     else{
                         // store in DB
                         try {
-                            const response1 = await fetch('http://localhost:3000/api/v1/storeUndeliveredMessage', {
+                            const response1 = await fetch(`${BackendUrl}/api/v1/storeUndeliveredMessage`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ 
@@ -1434,9 +1482,110 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         }
     }
 
+    const groupFileUploadHandler = async(event) => {
+        setIsUploading(true);
+        const file = event.target.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('File size exceeds 5MB!');
+            return;
+        }
+        if (file) {
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // make backend call and recieve url will set on profilePic
+            try {
+                const response = await fetch(`${BackendUrl}/api/v1/fileUpload`, {
+                    method: 'POST',
+                    body: formData,
+                });
+        
+                const data = await response.json();
+
+                const messageId = Date.now();
+                const timestamp = Date().split("GMT")[0].trim();
+
+                if (!sentMessageIds.current.has(messageId)) {
+                    // Add the message ID to the Set
+                    sentMessageIds.current.add(messageId);
+                    
+                    // emit message
+                    socket.emit('sendGroupMessage', {
+                        messageId: messageId,
+                        groupName:currEmailID,
+                        sender: emailId,
+                        message: data.url,
+                        time: timestamp,
+                        fullName:myFullName.current,
+                        type:'file'
+                    });
+
+                    // update chat state
+                    setChats((prevChats) => {
+                        const updatedChats = { ...prevChats };
+                        if (!updatedChats[currEmailID]) {
+                            updatedChats[currEmailID] = { messages: [], lastMessage: {}, messageIds: new Set([]) };
+                        }
+    
+                        // check again -- O(1)
+                        const messageExists = updatedChats[currEmailID]?.messageIds.has(messageId);
+    
+                        if(!messageExists){
+                            updatedChats[currEmailID].messageIds.add(messageId);
+                            updatedChats[currEmailID].messages.push({
+                                side: 'me',
+                                message: data.url,
+                                time: timestamp,
+                                type:'file',
+                                messageId: messageId,
+                            });
+        
+                            updatedChats[currEmailID].lastMessage = {
+                                side: 'me',
+                                message: data.url,
+                                time: timestamp
+                            };
+                        }
+                        
+                        return updatedChats;
+                    });
+
+                    // make message object
+                    const messageObject = [{
+                        messageId: messageId,
+                        sender:myFullName.current,
+                        senderEmail: emailId,
+                        message: data.url,
+                        time: timestamp,
+                        type:'file'
+                    }]
+
+                    try {
+                        await fetch(`${BackendUrl}/api/v1/groupMessageStore`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ groupId:currEmailID, message: messageObject })
+                        });
+    
+                    } catch (error) {
+                        console.log(error);
+                    }
+        
+                }
+
+            } catch (error) {
+                console.log(error);
+            }  finally {
+                setIsUploading(false);
+            }
+
+        }
+    }
+
     const deleteGroupHandler = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/v1/deleteGroup', {
+            const response = await fetch(`${BackendUrl}/api/v1/deleteGroup`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ groupId: currEmailID, userId: emailId })
@@ -1468,7 +1617,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
 
             // make backend call and recieve url will set on profilePic
             try {
-                const response = await fetch('http://localhost:3000/api/v1/imageUpload', {
+                const response = await fetch(`${BackendUrl}/api/v1/imageUpload`, {
                     method: 'POST',
                     body: formData,
                 });
@@ -1490,40 +1639,67 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         }
     };
 
+    const backUpHandler = async () => {
+        setBackup(true);
+        try {
+            const response = await fetch(`${BackendUrl}/api/v1/backUpChat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emailId: emailId, chats:chats})
+            });
+    
+            const data = await response.json();
+
+            if(data.success){
+               toast.success(`${data.message}`);
+            }
+            else{
+                toast.error(`${data.message}`);
+            }
+        } catch (error) {
+            console.log(error);
+        } finally{
+            setBackup(false);
+        }
+    }
+
     useEffect(() => {
         if (socket) {
             socket.on('receiveMessage', (data) => {
-                console.log(data);
-                setChats((prevChats) => {
-                    const updatedChats = { ...prevChats };
-                    if (!updatedChats[data.sender]) {
-                        updatedChats[data.sender] = { messages: [], lastMessage: {},profilePhoto:'',unreadMessages:0,in:true};
-                    }
+                if(!receiveMessageIds.current.has(data.messageId)){
+                    receiveMessageIds.current.add(data.messageId);
 
-                    updatedChats[data.sender].fullName = data.fullName;
-                    // console.log(updatedChats[data.seder]);
-                    const numOfUnreadMessage=updatedChats[data.sender].unreadMessages+1;
-                    updatedChats[data.sender].unreadMessages=numOfUnreadMessage;
-                    updatedChats[data.sender].messages.push({
-                        messageId: data.messageId,
-                        message: data.message,
-                        time: data.time,
-                        type:data.type,
-                        isSeen: data.isSeen
+                    setChats((prevChats) => {
+                        const updatedChats = { ...prevChats };
+                        if (!updatedChats[data.sender]) {
+                            updatedChats[data.sender] = { messages: [], lastMessage: {},profilePhoto:'',unreadMessages:0,in:true};
+                        }
+    
+                        updatedChats[data.sender].fullName = data.fullName;
+    
+                        const numOfUnreadMessage=updatedChats[data.sender].unreadMessages+1;
+                        updatedChats[data.sender].unreadMessages=numOfUnreadMessage;
+                        updatedChats[data.sender].messages.push({
+                            messageId: data.messageId,
+                            message: data.message,
+                            time: data.time,
+                            type:data.type,
+                            isSeen: data.isSeen
+                        });
+    
+                        updatedChats[data.sender].lastMessage = {
+                            message: data.message,
+                            time: data.time
+                        };
+    
+                        return updatedChats;
                     });
-
-                    updatedChats[data.sender].lastMessage = {
-                        message: data.message,
-                        time: data.time
-                    };
-
-                    return updatedChats;
-                });
-                getUserInfo(data.sender);
+                    getUserInfo(data.sender);
+                }
+                
             });
 
             socket.on('addGroup',(data)=>{
-                console.log(data);
                 const groupName=data.groupName;
                 const groupId=data.groupId;
 
@@ -1554,7 +1730,6 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             })
 
             socket.on('receiveGroupMessage',(data) => {
-                console.log(data);
                 if (!receiveMessageIds.current.has(data.messageId)){
 
                     setChats((prevChats) => {
@@ -1635,14 +1810,13 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     useEffect( () => {     
         if(currEmailID){
             if(chats[currEmailID].type===undefined || chats[currEmailID]?.type!=='Group'){
-                console.log("emit for checking status")
                 // socket.emit('status',{
                 //     sender: currEmailID,
                 //     receiver: emailId
                 // });
                 const userStatusUpadte = async (currEmailID) => {
                     try {
-                        const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+                        const response = await fetch(`${BackendUrl}/api/v1/checkUser`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ emailId: currEmailID }),
@@ -1712,13 +1886,13 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
       }   
     }, [socket,allRooms])
     
-
     if(mainPageLoad){
         return (
             <Box sx={{ display: 'flex' , justifyContent:'center', alignItems:'center'}} className='h-screen'>
                 <CircularProgress />
             </Box>
-    )}
+        )
+    }
 
 return (
     <Container maxWidth="lg" className="h-screen flex flex-col p-4">
@@ -1730,9 +1904,25 @@ return (
                 <div className="w-full min-w-[270px] sm:w-1/4 p-2 bg-white shadow rounded-lg sm:mr-4 min-h-fit">
                     <div className='flex justify-between items-center ml-2 mr-2'>
                         <Avatar src={myProfilePic.current} onClick={()=>{navigate(`/${emailId}/updateDetails`)}} className='cursor-pointer'/>
-                        <Tooltip title="Log Out" placement="right">
-                            <LogoutIcon className='cursor-pointer' onClick={logOutHandler}/>
-                        </Tooltip>
+
+                        <div className='flex gap-4'>
+                            {
+                                backup ? (
+                                    <Tooltip title="Backing up" placement="left">
+                                        <PublishIcon className='cursor-pointer'/>
+                                    </Tooltip>
+                                ):(
+                                 <Tooltip title="Back-Up Chats" placement="left">
+                                    <BackupIcon className='cursor-pointer' onClick={backUpHandler}/>
+                                </Tooltip>
+                                )
+                            }
+                            
+
+                            <Tooltip title="Log Out" placement="right">
+                                <LogoutIcon className='cursor-pointer' onClick={logOutHandler}/>
+                            </Tooltip>
+                        </div>
                         
                     </div>
                     
@@ -1844,32 +2034,44 @@ return (
 
                     </div>   
                     
+                    {chats &&
+                        Object.entries(chats)
+                            .sort(([, chatA], [, chatB]) => {
+                            // Extract and parse the lastMessage time
+                            const timeA = chatA.lastMessage?.time
+                                ? Date.parse(chatA.lastMessage.time)
+                                : 0;
+                            const timeB = chatB.lastMessage?.time
+                                ? Date.parse(chatB.lastMessage.time)
+                                : 0;
+                            return timeB - timeA; // Newer messages first
+                            })
+                            .map(([email, chat], index) => (
+                            <div
+                                key={index}
+                                onClick={() => currentEmailHandler(email)}
+                                className="font-mono cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition duration-200 relative"
+                            >
+                                <div className="font-bold font-arima text-lg flex gap-2 items-center">
+                                <Avatar src={chat?.profilePhoto} />
+                                <p>{chat?.fullName}</p>
+                                </div>
 
-                    {chats && 
-                    Object.keys(chats).map((email, index) => (
-                        <div
-                        key={index}
-                        onClick={() => currentEmailHandler(email)}
-                        className="font-mono cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition duration-200 relative"
-                      >
-
-                        <div className="font-bold font-arima text-lg flex gap-2 items-center">
-                            <Avatar src={chats[email]?.profilePhoto} />
-                            <p>{chats[email]?.fullName }</p>
-                        </div>
-                      
-                        {chats[email].lastMessage && (
-                          <p className="text-gray-600 font-arima pl-12">
-                            {chats[email]?.lastMessage?.message?.length > 10 
-                            ? chats[email]?.lastMessage?.message.substring(0, 10) + '...' 
-                            : chats[email]?.lastMessage?.message} - {chats[email]?.lastMessage?.time}
-                          </p>
-                        )}
-                        { chats[email].unreadMessages>0 &&
-                            <div className='rounded-full bg-green-400 text-white z-10 absolute right-2 bottom-6 p-2 size-6 flex items-center justify-center'>{chats[email].unreadMessages}</div>
-                        }
-                      </div>                      
-                    ))}
+                                {chat.lastMessage && (
+                                <p className="text-gray-600 font-arima pl-12">
+                                    {chat.lastMessage?.message?.length > 10
+                                    ? chat.lastMessage?.message.substring(0, 10) + "..."
+                                    : chat.lastMessage?.message}{" "}
+                                    - {chat.lastMessage?.time}
+                                </p>
+                                )}
+                                {chat.unreadMessages > 0 && (
+                                <div className="rounded-full bg-green-400 text-white z-10 absolute right-2 bottom-6 p-2 size-6 flex items-center justify-center">
+                                    {chat.unreadMessages}
+                                </div>
+                                )}
+                            </div>
+                            ))}
                 </div>
             )}
 
@@ -2018,6 +2220,7 @@ return (
                                 )}
                             </div>
 
+                            {/* messages display */}
                             <div className="flex-1 overflow-y-auto p-4 mt-14 bg-sky-50 rounded-md">
                                 {chats[currEmailID]?.messages.length > 0 ? (
                                     chats[currEmailID].messages.map((msg, index) => {
@@ -2123,7 +2326,10 @@ return (
                                 ) : (
                                     <Typography variant="body2 font-AfacadFlux" className="text-gray-500 text-center mt-4 flex justify-center">No messages yet. Start the conversation!</Typography>
                                 )}
-                                {/* <div ref={messagesEndRef} /> */}
+
+                                {/* Ref to scroll to the bottom */}
+                                <div ref={messagesEndRef} />
+
                             </div>
 
                             <form onSubmit={chats[currEmailID]?.type==='Group'? sendGroupMessage : sendHandler} className="flex p-2 relative border-2 rounded-md">
@@ -2175,7 +2381,7 @@ return (
                                 }
                                 
 
-                                <input type='file' hidden id='file' onChange={fileUploadHandler}></input>
+                                <input type='file' hidden id='file' onChange={ chats[currEmailID]?.type==='Group' ? groupFileUploadHandler : fileUploadHandler }></input>
                                 <div
                                     className="cursor-pointer mt-2 text-gray-500 mr-2"
                                     onClick={() => document.getElementById('file').click()}

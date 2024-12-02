@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const sendResetPasswordLink = async (email,title,link)=> {
+    const frontendUrl=process.env.BASE_URL;
     try{
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -11,7 +12,7 @@ const sendResetPasswordLink = async (email,title,link)=> {
                 pass: process.env.PASSWORDEMAIL,
             },
         });
-        const frontendLink = `http://localhost:5173/resetPassWord/Newpass?token=${link}`;
+        const frontendLink = `${frontendUrl}/resetPassWord/Newpass?token=${link}`;
         const mailOptions = {
             from: process.env.EMAIL,
             to: email,

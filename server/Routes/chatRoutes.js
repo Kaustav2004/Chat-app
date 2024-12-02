@@ -1,5 +1,5 @@
 import express from 'express';
-import { addMember, checkGroupName, checkUser, createGroup, deleteAccount, deleteGroup, fetchGroupInfo, fetchStatus, getMyOfflineMessages, getUndeliveredMessages, imageUpload, makeAdmin, removeAdmin, removeMember, undeliveredMessageStore, updateName, updatePassword, updateSocket, updateStatus, uploadFile, uploadMiddleware } from '../Controllers/Chat.js';
+import { addMember, backUpChat, checkGroupName, checkUser, createGroup, deleteAccount, deleteGroup, fetchGroupInfo, fetchGroupMessages, fetchStatus, getMyOfflineMessages, getUndeliveredMessages, groupMessageStore, imageUpload, makeAdmin, removeAdmin, removeMember, undeliveredMessageStore, updateName, updatePassword, updateSocket, updateStatus, uploadFile, uploadMiddleware } from '../Controllers/Chat.js';
 
 const router = express.Router();
 
@@ -23,5 +23,8 @@ router.post("/deleteGroup",deleteGroup);
 router.post("/storeUndeliveredMessage",undeliveredMessageStore);
 router.post("/getUndeliveredMessage",getUndeliveredMessages);
 router.post("/getMyOfflineMessages",getMyOfflineMessages);
+router.post("/groupMessageStore",groupMessageStore);
+router.post("/fetchGroupMessages", fetchGroupMessages);
+router.post("/backUpChat", backUpChat);
 
 export default router;

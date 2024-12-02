@@ -60,7 +60,6 @@ const AuthPage = ({setemailId}) => {
   // Handle login submission
   const loginSubmitHandler = async (e) => {
     e.preventDefault();
-    console.log(loginData);
     const emailId = loginData.email;
   
     try {
@@ -137,7 +136,6 @@ const AuthPage = ({setemailId}) => {
          return;
     }
     setError("");
-    console.log(signupData);
     setIsLoading(true);
     try {
       const response = await fetch('http://localhost:3000/api/v1/otp', {
@@ -156,7 +154,6 @@ const AuthPage = ({setemailId}) => {
       // Check for success in the response data
       if (data.success) {
         toast.success(`${data.message}`);
-        console.log(data);
         // store in local and will access in time to verify otp
         sessionStorage.setItem('signupData', JSON.stringify(signupData));
         setIsLoading(false);
@@ -191,10 +188,8 @@ const AuthPage = ({setemailId}) => {
       return;
     }
     setError("");
-    console.log("OTP Verified: ", otpValue);
     const data1 = sessionStorage.getItem('signupData');
     const parsedData = JSON.parse(data1);
-    console.log(parsedData);
     if(!parsedData){
       toast.error("Sign Up Again");
     }
@@ -227,7 +222,6 @@ const AuthPage = ({setemailId}) => {
       // Check for success in the response data
       if (data.success) {
         toast.success(`${data.message}`);
-        console.log(data);
   
         setIsOtpScreen(false);
         setIsLogin(true);

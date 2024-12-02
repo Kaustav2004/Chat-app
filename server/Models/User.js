@@ -36,7 +36,6 @@ const userSchema = new mongoose.Schema({
     currStatus:{
         type:String
     }
-    // undelivered
 })
 
 const User=mongoose.model("User",userSchema);
