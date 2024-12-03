@@ -5,14 +5,19 @@ import cors from 'cors';
 import dbConnect from './Config/Database.js';
 import authRoutes from './Routes/authRoutes.js';
 import chatRoutes from './Routes/chatRoutes.js';
+import dotenv from 'dotenv';
 
+dotenv.config();
+
+const BACKEND_URL = process.env.BACKEND_URL;
+const BASE_URL =  process.env.BASE_URL;
 const app = express();
 
 // Create server
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173',
+    origin: `${BASE_URL}`,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -56,7 +61,7 @@ io.on('connection', (socket) => {
 
       // upadte on db
       try {
-        const response = await fetch('http://localhost:3000/api/v1/updateStatus', {
+        const response = await fetch(`${BACKEND_URL}/api/v1/updateStatus`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ socketId: socket.id, status:"online" })
@@ -72,7 +77,7 @@ io.on('connection', (socket) => {
 
       // socket id in db
       try {
-        const response = await fetch('http://localhost:3000/api/v1/updateSocket', {
+        const response = await fetch(`${BACKEND_URL}/api/v1/updateSocket`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ emailId: emailId, socketId: socket.id })
@@ -136,7 +141,7 @@ io.on('connection', (socket) => {
 
     // upadte on db
     try {
-      const response = await fetch('http://localhost:3000/api/v1/updateStatus', {
+      const response = await fetch(`${BACKEND_URL}/api/v1/updateStatus`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ socketId: socket.id, status:"offline" })
@@ -150,7 +155,7 @@ io.on('connection', (socket) => {
       else{
         const emailId = data.response.emailId;
         try {
-          const response = await fetch('http://localhost:3000/api/v1/updateSocket', {
+          const response = await fetch(`${BACKEND_URL}/api/v1/updateSocket`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({emailId:emailId, socketId:'None'})
