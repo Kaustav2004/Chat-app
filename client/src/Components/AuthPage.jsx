@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const AuthPage = ({setemailId}) => {
+  const BACKEND_URL = import.meta.env.VITE_BASE_URL;
   const [isLogin, setIsLogin] = useState(true); // Toggle between login and signup
   const [isOtpScreen, setIsOtpScreen] = useState(false); // Toggle between signup and OTP screens
   const [loginData, setLoginData] = useState({ email: "", password: "" });
@@ -63,7 +64,7 @@ const AuthPage = ({setemailId}) => {
     const emailId = loginData.email;
   
     try {
-      const response = await fetch('http://localhost:3000/api/v1/logIn', {
+      const response = await fetch(`${BACKEND_URL}/api/v1/logIn`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +139,7 @@ const AuthPage = ({setemailId}) => {
     setError("");
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/v1/otp', {
+      const response = await fetch(`${BACKEND_URL}/api/v1/otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -194,7 +195,7 @@ const AuthPage = ({setemailId}) => {
       toast.error("Sign Up Again");
     }
     try {
-      const response = await fetch('http://localhost:3000/api/v1/signUp', {
+      const response = await fetch(`${BACKEND_URL}/api/v1/signUp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

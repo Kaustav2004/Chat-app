@@ -9,6 +9,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 const UpdateProfile = ({emailIdCurr}) => {
+    const BACKEND_URL = import.meta.env.VITE_BASE_URL;
     const {emailId} = useParams();
     const navigate = useNavigate();
     
@@ -26,7 +27,7 @@ const UpdateProfile = ({emailIdCurr}) => {
     const userDetails = async () => {
         setloading(true);
         try {
-            const response = await fetch('http://localhost:3000/api/v1/checkUser', {
+            const response = await fetch(`${BACKEND_URL}/api/v1/checkUser`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ emailId: emailId })
@@ -64,7 +65,7 @@ const UpdateProfile = ({emailIdCurr}) => {
 
             // make backend call and recieve url will set on profilePic
             try {
-                const response = await fetch('http://localhost:3000/api/v1/imageUpload', {
+                const response = await fetch(`${BACKEND_URL}/api/v1/imageUpload`, {
                     method: 'POST',
                     body: formData,
                 });
@@ -89,7 +90,7 @@ const UpdateProfile = ({emailIdCurr}) => {
     const handleDeleteAccount = async () => {
         
         try {
-            const response = await fetch('http://localhost:3000/api/v1/deleteAccount', {
+            const response = await fetch(`${BACKEND_URL}/api/v1/deleteAccount`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -113,7 +114,7 @@ const UpdateProfile = ({emailIdCurr}) => {
 
     const updateName = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/v1/updateName', {
+            const response = await fetch(`${BACKEND_URL}/api/v1/updateName`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -167,7 +168,7 @@ const UpdateProfile = ({emailIdCurr}) => {
             return;
         }
         try {
-            const response = await fetch('http://localhost:3000/api/v1/updatePassword', {
+            const response = await fetch(`${BACKEND_URL}/api/v1/updatePassword`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
