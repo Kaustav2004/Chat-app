@@ -15,19 +15,8 @@ const app = express();
 
 // Create server
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://chat-p1gs531dc-kaustavs-projects-890192ff.vercel.app'
-];
-
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 };
