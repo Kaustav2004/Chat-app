@@ -375,10 +375,16 @@ export const updateStatus = async (req,res)=>{
 export const updateSocket = async (req,res) => {
     const {emailId,socketId} = req.body;
     try {
-        const expiryTime = new Date(Date.now() + 12 * 60 * 60 * 1000);
+        let expiryTime = new Date(Date.now() + 12 * 60 * 60 * 1000);
+        let currStatus = 'Online';
+        if(socketId==='None') {
+            currStatus='Offline';
+            expiryTime=-1;
+        }
         const response = await User.findOneAndUpdate({emailId:emailId},{
                 socketId:socketId,
-                socketIdExpiry: expiryTime
+                socketIdExpiry: expiryTime,
+                currStatus:currStatus
         },{new:true});
         if(response){
             return res.status(200).json({
