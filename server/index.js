@@ -14,14 +14,41 @@ const BASE_URL =  process.env.BASE_URL;
 const app = express();
 
 // Create server
-const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: `${BASE_URL}`,
-    methods: ['GET', 'POST'],
-    credentials: true,
+
+const allowedOrigins = [
+  'https://chat-p6bkrh7pu-kaustavs-projects-890192ff.vercel.app',
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+};
+
+// Express CORS
+app.use(cors(corsOptions));
+
+
+const server = createServer(app);
+// Socket.IO CORS
+const io = new Server(server, {
+  cors: corsOptions,
 });
+
+
+// const io = new Server(server, {
+//   cors: {
+//     origin: `${BASE_URL}`,
+//     methods: ['GET', 'POST'],
+//     credentials: true,
+//   },
+// });
 
 // Middlewares
 
@@ -29,11 +56,11 @@ app.use('/uploads', express.static('uploads'));
 
 app.use(express.json());
 
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true,
-}));
+// app.use(cors({
+//   origin: '*',
+//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
+//   credentials: true,
+// }));
 // app.use(cors());
 
 // Default route
