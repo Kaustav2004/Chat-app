@@ -8,13 +8,14 @@ import toast from 'react-hot-toast';
 import ResetPassword from './Components/ResetPassword';
 
 const App = () => {
+  const BackendUrl = import.meta.env.VITE_BASE_URL;
   const infoEmail = getEmailFromToken();
   const init = infoEmail ? infoEmail :'';
   const [emailId, setemailId] = useState(init);
   const navigate = useNavigate();
   const logOutHandler = async() => {
     try {
-      const response = await fetch('http://localhost:3000/api/v1/updateSocket', {
+      const response = await fetch(`${BackendUrl}/api/v1/updateSocket`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({emailId:emailId, socketId:'None'})

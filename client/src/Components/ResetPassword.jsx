@@ -8,6 +8,7 @@ import { useLocation } from "react-router-dom";
 import { useSnackbar } from 'notistack'; 
 
 const ResetPassword = () => {
+    const BackendUrl = import.meta.env.VITE_BASE_URL;
     const {type} = useParams();
     let token='';
     const { enqueueSnackbar } = useSnackbar();
@@ -30,7 +31,7 @@ const ResetPassword = () => {
         e.preventDefault();
 
         try {
-            const response = await fetch('http://localhost:3000/api/v1/resetPassword', {
+            const response = await fetch(`${BackendUrl}/api/v1/resetPassword`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -88,7 +89,7 @@ const ResetPassword = () => {
             return;
         }
         try {
-            const response = await fetch('http://localhost:3000/api/v1/resetPasswordDB', {
+            const response = await fetch(`${BackendUrl}/api/v1/resetPasswordDB`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
