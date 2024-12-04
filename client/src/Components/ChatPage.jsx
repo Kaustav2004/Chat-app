@@ -1663,6 +1663,10 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         }
     }
 
+    const logOutHandlerFunction = () => {
+        io.emit("currStatus", { userId: emailId, status: "offline" })
+        logOutHandler();
+    }
     useEffect(() => {
         if (socket) {
             socket.on('receiveMessage', (data) => {
@@ -1920,7 +1924,7 @@ return (
                             
 
                             <Tooltip title="Log Out" placement="right">
-                                <LogoutIcon className='cursor-pointer' onClick={logOutHandler}/>
+                                <LogoutIcon className='cursor-pointer' onClick={logOutHandlerFunction}/>
                             </Tooltip>
                         </div>
                         
