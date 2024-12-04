@@ -109,7 +109,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
             return;
         }
         setmainPageLoad(true);
-        const newSocket = io(`${BackendUrl}`);
+        const newSocket = io(`${BackendUrl}/`);
     
         const fetchUserInfo = async () => {
             try {
@@ -1664,7 +1664,7 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     }
 
     const logOutHandlerFunction = () => {
-        io.emit("currStatus", { userId: emailId, status: "offline" })
+        socket.emit("currStatus", { userId: emailId, status: "offline" })
         logOutHandler();
     }
     useEffect(() => {
