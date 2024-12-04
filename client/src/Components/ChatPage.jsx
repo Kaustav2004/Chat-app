@@ -362,7 +362,8 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
         });
     
         setSocket(newSocket); // Set the socket state
-    
+        
+        newSocket.emit('register', emailId);
         return () => {
             newSocket.disconnect(); // Clean up the socket on unmount
         };
@@ -2193,7 +2194,7 @@ return (
                                         <Avatar src={chats[currEmailID]?.profilePhoto} onClick={()=>{handleFetchGroupInfo(currEmailID)}} className='cursor-pointer'/>
                                     ):(
                                         
-                                            chats[currEmailID]?.status === 'online' ? (
+                                            (chats[currEmailID]?.status === 'online' || chats[currEmailID]?.status === 'Online' ) ? (
                                                 <StyledBadge
                                                     overlap="circular"
                                                     anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}

@@ -12,6 +12,7 @@ dotenv.config();
 const BACKEND_URL = process.env.BACKEND_URL;
 const BASE_URL =  process.env.BASE_URL;
 const app = express();
+const connectedUsers = new Map(); 
 
 // Create server
 
@@ -66,6 +67,12 @@ app.use("/api/v1", chatRoutes);
 io.on('connection', (socket) => {
   console.log('a user connected:', socket.id);
   
+
+  socket.on('register', (emailId) => {
+    connectedUsers.set(socket.id, emailId);
+    console.log(`Registered ${emailId} with socket ID ${socket.id}`);
+  });
+
   // Handle user joining a personal room based on emailId
   socket.on('joinRoom', async ({emailId,user}) => {
     socket.join(emailId);
@@ -156,22 +163,36 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
 
+    const emailId = connectedUsers.get(socket.id); // Retrieve emailId
+    if (!emailId) {
+        console.log(`No emailId found for socket ID ${socket.id}`);
+        return;
+    }
+
+    // Remove the user from the connected users map
+    connectedUsers.delete(socket.id);
+
+    // Emit the "currStatus" event and update the database
+    io.emit("currStatus", { userId: emailId, status: "offline" });
+
     // upadte on db
     try {
-      const response = await fetch(`${BACKEND_URL}/api/v1/updateStatus`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ socketId: socket.id, status:"offline" })
-      });
+      // const response = await fetch(`${BACKEND_URL}/api/v1/updateStatus`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ socketId: socket.id, status:"offline" })
+      // });
 
-      const data = await response.json();
+      // const data = await response.json();
 
-      if(!data.success){
-        console.log(data.message);
-      }
-      else{
-        const emailId = data.response.emailId;
-        try {
+      // console.log(data);
+      // if(!data.success){
+      //   console.log(data.message);
+      // }
+      // else{
+        // console.log(data.response);
+        // const emailId = data.response.emailId;
+        // try {
           const response = await fetch(`${BACKEND_URL}/api/v1/updateSocket`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -187,11 +208,11 @@ io.on('connection', (socket) => {
             io.emit("currStatus", { userId: emailId, status: "offline" }); 
           }
           
-        } catch (error) {
-          console.log(error);
-        }
+        // } catch (error) {
+        //   console.log(error);
+        // }
         
-      }
+      // }
     } catch (error) {
       console.log(error);
     }
