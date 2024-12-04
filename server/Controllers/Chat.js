@@ -376,9 +376,9 @@ export const updateSocket = async (req,res) => {
     const {emailId,socketId} = req.body;
     try {
         let expiryTime = new Date(Date.now() + 12 * 60 * 60 * 1000);
-        let currStatus = 'Online';
+        let currStatus = 'online';
         if(socketId==='None') {
-            currStatus='Offline';
+            currStatus='offline';
             expiryTime=-1;
         }
         const response = await User.findOneAndUpdate({emailId:emailId},{

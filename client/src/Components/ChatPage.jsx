@@ -1664,8 +1664,10 @@ const ChatPage = ({emailIdCurr,logOutHandler}) => {
     }
 
     const logOutHandlerFunction = () => {
+       
         socket.emit("currStatus", { userId: emailId, status: "offline" })
         logOutHandler();
+        // socket.emit('disconnect');
     }
     useEffect(() => {
         if (socket) {
