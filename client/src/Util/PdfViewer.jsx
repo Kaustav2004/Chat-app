@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Worker, Viewer } from '@react-pdf-viewer/core';
 import '@react-pdf-viewer/core/lib/styles/index.css';
-// import pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.js';
 
 const pdfjsWorker = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
