@@ -16,7 +16,8 @@ const app = express();
 // Create server
 
 const allowedOrigins = [
-  'https://chat-q9cpep8if-kaustavs-projects-890192ff.vercel.app'
+  'http://localhost:5173',
+  'https://chat-p1gs531dc-kaustavs-projects-890192ff.vercel.app'
 ];
 
 const corsOptions = {
