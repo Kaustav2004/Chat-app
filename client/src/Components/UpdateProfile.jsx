@@ -101,6 +101,7 @@ const UpdateProfile = ({emailIdCurr}) => {
             const data = await response.json();
             if(data.success){
                 localStorage.removeItem(emailId);
+                localStorage.removeItem('token');
                 setOpen(false);
                 enqueueSnackbar('Account deleted!', { variant: 'warning' });
                 navigate('/auth');
