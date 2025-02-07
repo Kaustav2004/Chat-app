@@ -8,7 +8,7 @@ import { Toaster } from 'react-hot-toast';
 import { SnackbarProvider } from 'notistack';
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
+  <>
     <CssBaseline />
     <BrowserRouter>
     <SnackbarProvider maxSnack={3}>
@@ -16,5 +16,5 @@ createRoot(document.getElementById('root')).render(
       <App />
     </SnackbarProvider>
     </BrowserRouter>
-  </StrictMode>,
+  </>,
 );
