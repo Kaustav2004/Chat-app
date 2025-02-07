@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button, TextField, Typography, CircularProgress, Box } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -62,7 +62,7 @@ const AuthPage = ({setemailId}) => {
   const loginSubmitHandler = async (e) => {
     e.preventDefault();
     const emailId = loginData.email;
-  
+    toast("Login can take upto 40s");
     try {
       const response = await fetch(`${BACKEND_URL}/api/v1/logIn`, {
         method: 'POST',
@@ -138,6 +138,7 @@ const AuthPage = ({setemailId}) => {
     }
     setError("");
     setIsLoading(true);
+    toast("Sign up can take upto 40s");
     try {
       const response = await fetch(`${BACKEND_URL}/api/v1/otp`, {
         method: 'POST',
@@ -238,7 +239,21 @@ const AuthPage = ({setemailId}) => {
     setOtp(["", "", "", ""]); // Reset OTP
     // Proceed with navigation or next step after OTP verification
   };
-
+  useEffect(() => {
+    toast('Use correct emailId for Sign Up.\n Do not use emailId like - "abc@gmail.com", "demo@gmail.com" etc',
+      {
+        position: "top-right",
+        duration: 15000,
+        style: {
+          borderRadius: '10px',
+          background: 'red',
+          color: '#fff',
+           position: "top-right"
+        },
+    }
+  )
+  }, [])
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="w-full h-fit max-w-md bg-white rounded-lg shadow-md p-8 ">
