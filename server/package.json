@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
+    "vercel-build": "node index.js",
     "dev": "nodemon index.js"
   },
   "keywords": [],
