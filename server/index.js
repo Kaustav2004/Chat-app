@@ -6,6 +6,7 @@ import dbConnect from './Config/Database.js';
 import authRoutes from './Routes/authRoutes.js';
 import chatRoutes from './Routes/chatRoutes.js';
 import dotenv from 'dotenv';
+const serverless = require("serverless-http");
 
 dotenv.config();
 
@@ -227,3 +228,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+module.exports.handler = serverless(app); 
