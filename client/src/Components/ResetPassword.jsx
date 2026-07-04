@@ -13,16 +13,16 @@ const ResetPassword = () => {
     const {type} = useParams();
     let token='';
     const { enqueueSnackbar } = useSnackbar();
+    const navigate = useNavigate();
     if(type==='Newpass'){
         const location = useLocation();
         const queryParams = new URLSearchParams(location.search);
         token = queryParams.get("token");
         if (!token) {
-            enqueueSnackbar("Invalid or missing token", { variant: "error" });
+            navigate("/");
         }
     }
     const [emailId, setEmailid] = useState('');
-    const navigate = useNavigate();
     const [pass, setPass] = useState('');
     const [cnfPass, setCnfPass] = useState('');
     const [visibilityPass, setVisibityPass] = useState(false);
