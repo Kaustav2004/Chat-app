@@ -7,14 +7,11 @@ const sendResetPasswordLink = async (email, title, link) => {
     const currentYear = new Date().getFullYear();
     try {
         // Mailtrap SMTP transport configuration
-        console.log("MAILTRAP_API_TOKEN exists:", !!process.env.MAILTRAP_API_TOKEN);
-        console.log("SENDER_EMAIL:", process.env.SENDER_EMAIL);
-        console.log("Sending to:", email);
         const transport = nodemailer.createTransport({
-            host: process.env.MAILTRAP_HOST || "live.smtp.mailtrap.io",
-            port: parseInt(process.env.MAILTRAP_PORT) || 587,
+            host: "live.smtp.mailtrap.io",
+            port: 587,
             auth: {
-                user: process.env.MAILTRAP_USER || "api",
+                user: "api",
                 pass: process.env.MAILTRAP_API_TOKEN
             }
         });
