@@ -22,7 +22,7 @@ const sendResetPasswordLink = async (email,title,link)=> {
         };
 
         const info = await transporter.sendMail(mailOptions);
-
+        console.log("Mail info: ",info);
         return info;
     }
     catch(err){
