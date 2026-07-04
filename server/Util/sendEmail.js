@@ -148,7 +148,7 @@ const sendEmail = async (email, title, otp) => {
             category: "Email Verification",
         });
 
-        console.log("✅ OTP email sent:", result.message_id);
+        console.log("✅ OTP email sent:", result);
         return result;
     } catch (err) {
         console.error("❌ Email sending failed:", err.message);
