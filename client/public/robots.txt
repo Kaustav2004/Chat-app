@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /api/
+Disallow: /auth
+Disallow: /updateProfile
+Disallow: /resetPassWord
+Allow: /
+
+Sitemap: https://appconnekt.vercel.app/sitemap.xml
