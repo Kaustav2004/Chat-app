@@ -631,6 +631,7 @@ const AuthPage = ({ setemailId }) => {
     <div style={{
       minHeight: '100vh',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       background: 'linear-gradient(135deg, #0F172A 0%, #111827 50%, #1E293B 100%)',
@@ -639,6 +640,22 @@ const AuthPage = ({ setemailId }) => {
       overflow: 'hidden',
       fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif",
     }}>
+      {
+        isMobile ?  <Typography
+            sx={{
+              fontFamily: "Black Ops One",
+              marginTop: '10px',
+              marginBottom: '8px',
+              fontWeight: 200,
+              fontSize: isMobile ? "2rem" : "3rem",
+              color: "#fff",
+              letterSpacing: "-1px",
+              lineHeight: 1,
+            }}
+          >
+            Connekt
+          </Typography> : null
+      }
       {/* Background effects - scaled for mobile */}
       <div style={{
         position: 'absolute',
