@@ -142,7 +142,7 @@ const sendResetPasswordLink = async (email, title, link) => {
             category: "Password Reset",
         });
 
-        console.log("✅ Reset password email sent:", result.message_id);
+        console.log("✅ Reset password email sent:", result);
         return result;
     } catch (err) {
         console.error("❌ Email sending failed:", err.message);
