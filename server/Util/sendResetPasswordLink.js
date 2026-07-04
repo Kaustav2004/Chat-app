@@ -10,10 +10,14 @@ const sendResetPasswordLink = async (email, title, link) => {
         const transport = nodemailer.createTransport({
             host: "live.smtp.mailtrap.io",
             port: 587,
+            secure: false,
             auth: {
                 user: "api",
                 pass: process.env.MAILTRAP_API_TOKEN
-            }
+            },
+            connectionTimeout: 10000, // 10 seconds
+            greetingTimeout: 10000,
+            socketTimeout: 15000,
         });
 
         const frontendLink = `${frontendUrl}/resetPassWord/Newpass?token=${link}`;
